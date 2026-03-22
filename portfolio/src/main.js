@@ -224,7 +224,11 @@ function render(data) {
       }
       <section aria-labelledby="exp-heading">
         <h2 id="exp-heading" class="section-title">${esc(u.workHighlightsHeading || "Work highlights")}</h2>
-        <p class="section-lede">${esc(u.workHighlightsLede || "Roles and outcomes from your resume, in a portfolio layout.")}</p>
+        ${
+          u.workHighlightsLede && String(u.workHighlightsLede).trim()
+            ? `<p class="section-lede">${esc(String(u.workHighlightsLede).trim())}</p>`
+            : ""
+        }
         ${renderExperience(data.experience)}
       </section>
       ${
@@ -257,9 +261,11 @@ function render(data) {
           : ""
       }
     </main>
-    <footer class="site-footer">
-      <p>${renderInlineCodeSpans(u.footerNote || "Source: `content/resume.md` + `content/portfolio.md` - Run `npm run sync` after edits")}</p>
-    </footer>
+    ${
+      u.footerNote && String(u.footerNote).trim()
+        ? `<footer class="site-footer"><p>${renderInlineCodeSpans(String(u.footerNote).trim())}</p></footer>`
+        : ""
+    }
   `;
 }
 
