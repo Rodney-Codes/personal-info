@@ -1,11 +1,12 @@
-# CI on every PR/push; deploy static site to GitHub Pages on push to main.
+# CI on every PR/push; deploy static site to GitHub Pages on push to the default branch.
 name: Portfolio
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +15,7 @@ permissions:
 
 concurrency:
   group: portfolio-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -40,14 +41,21 @@ jobs:
           npm run validate:site
           npm run build
 
+      - name: List build output (debug)
+        run: ls -la portfolio/dist && test -f portfolio/dist/index.html
+
       - name: Upload GitHub Pages artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         uses: actions/upload-pages-artifact@v3
         with:
           path: portfolio/dist
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
     needs: build
     runs-on: ubuntu-latest
     environment:

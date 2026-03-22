@@ -58,6 +58,15 @@ These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`*
 2. Push to **`main`**: workflow **Portfolio** builds with `GITHUB_PAGES=true` (asset base = `/<repo-name>/`) and deploys **`portfolio/dist/`**.
 3. Site URL: **`https://<your-username>.github.io/<repository-name>/`** (repository name must match the path segment; GitHub sets `GITHUB_REPOSITORY` in Actions).
 
+**If you see the repo README instead of the portfolio:**
+
+1. **Settings → Pages → Source** must be **GitHub Actions** (not “Deploy from a branch”). Branch-based publishing serves the repo root (`README.md`).
+2. Open the latest **Portfolio** workflow run for a **push** to your **default branch** (not only a PR). Confirm **two jobs**: **`build`** and **`deploy`**. If **`deploy`** is missing or skipped, nothing was published to Pages (older branch-based site can still show).
+3. Merge this repo’s workflow update (deploy runs on **default branch**, not only `main`). Or **Actions → Portfolio → Run workflow** (manual) after selecting the default branch.
+4. Hard-refresh or try a private window; CDN can cache the old page briefly.
+
+**Custom domain field:** Must be a real DNS name (e.g. `portfolio.example.com`), not a path like `user/repo`. See GitHub’s [troubleshooting custom domains](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site/troubleshooting-custom-domains-and-github-pages#github-repository-setup-errors). To use only the default URL, leave **Custom domain** empty.
+
 Local production-like build (same base as CI):
 
 ```bash
