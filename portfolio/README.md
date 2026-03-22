@@ -105,7 +105,8 @@ portfolio/
 If the file starts with a **`---` … `---`** YAML block, those keys become **`site.json.ui`** (hero tagline, section headings, PDF button label, document title suffix, footer). Omitted keys use built-in defaults in **`scripts/sync-site.mjs`**.
 
 - **`heroTagline`**: use **`{{firstName}}`**; replaced from the first word of the name in **`resume.md`** at sync.
-- **`footerNote`**: plain text; wrap paths or commands in **backticks** to render as `<code>` (e.g. `` `npm run sync` ``).
+- **`workHighlightsLede`**: optional subtitle under Work highlights; omit or leave empty to hide.
+- **`footerNote`**: optional footer line; omit or leave empty to hide. If set, plain text with **backticks** for `<code>` (e.g. `` `npm run sync` ``).
 
 Without frontmatter, sync uses the same defaults and parses the whole file as Markdown (legacy).
 
