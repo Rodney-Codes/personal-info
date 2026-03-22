@@ -1,0 +1,6 @@
+{
+  "extraPaths": ["resume_pdf/src"],
+  "exclude": ["**/__pycache__", ".venv", "venv"],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

@@ -1,0 +1,33 @@
+# Virtual environment
+.venv/
+venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (portfolio and any future JS)
+node_modules/
+
+# Portfolio: generated (see portfolio/scripts/sync-site.mjs)
+portfolio/public/site.json
+portfolio/public/resume.pdf

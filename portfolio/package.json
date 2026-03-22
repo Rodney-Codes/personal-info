@@ -1,0 +1,23 @@
+{
+  "name": "personal-info-portfolio",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^18.0.0 || ^20.0.0 || >=22.0.0"
+  },
+  "scripts": {
+    "sync": "node scripts/sync-site.mjs",
+    "predev": "node scripts/sync-site.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/sync-site.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "validate:site": "node scripts/validate-site-json.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.4.1",
+    "vitest": "^3.0.5",
+    "yaml": "^2.8.3"
+  }
+}

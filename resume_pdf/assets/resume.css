@@ -1,0 +1,236 @@
+/*
+  Resume PDF layout (xhtml2pdf)
+
+  Page margins (all four sides): @page below. If PDF ignores @page, mirror these
+  values on body as padding (same property names).
+
+  Line spacing (within one paragraph): body { line-height }  -- tighter = smaller number
+
+  Paragraph spacing (gap between blocks): p { margin-top, margin-bottom }  -- independent of line-height
+
+  List spacing: ul { margin-* }, li { margin-* }  -- separate from body/p
+*/
+@page {
+  size: letter;
+  margin-top: 0.2in;
+  margin-right: 0.3in;
+  margin-bottom: 0.2in;
+  margin-left: 0.3in;
+}
+
+/*
+  xhtml2pdf DEFAULT_CSS sets html { display: inline } and p,h,hr { margin: 1em 0 },
+  which can inflate layout and trigger a blank last page. Override here.
+*/
+html {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: auto !important;
+  line-height: 1.12 !important;
+  font-size: 10pt !important;
+  white-space: normal !important;
+}
+
+/* Helvetica first, Calibri second; sans-serif last for PDF fallback */
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: Helvetica, Calibri, sans-serif;
+  font-size: 10pt;
+  line-height: 1.12;
+  color: #000;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+}
+
+/* Last block bottom margin can push total height past one page in xhtml2pdf */
+body > ul:last-child,
+body > p:last-child {
+  margin-bottom: 0;
+}
+
+/*
+  If your PDF ignores @page margins (xhtml2pdf can), use body padding instead
+  and zero out @page margins to avoid doubling:
+  @page { margin: 0; }
+  body { padding-top: 0.36in; padding-right: 0.42in; padding-bottom: 0.40in; padding-left: 0.38in; }
+*/
+
+h1 {
+  text-align: center;
+  font-size: 1.5em;
+  font-variant: small-caps;
+  font-weight: bold;
+  margin: 0 0 0.2em 0 !important;
+  letter-spacing: 0.5px;
+}
+
+/* Contact line: class added by resume_pdf pipeline (first <p> after <h1>) */
+p.resume-contact {
+  text-align: center;
+  font-size: 0.95em;
+  margin-top: 0.08em;
+  margin-bottom: 0.28em;
+}
+
+h2 {
+  font-size: 1.05em;
+  font-variant: small-caps;
+  font-weight: bold;
+  border: none;
+  margin-top: 0.48em !important;
+  margin-bottom: 0.22em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-bottom: 0;
+}
+
+h3 {
+  font-size: 1em;
+  font-weight: bold;
+  margin-top: 0.28em !important;
+  margin-bottom: 0.1em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+h4 {
+  font-size: 0.95em;
+  font-weight: normal;
+  font-style: italic;
+  margin-top: 0.14em !important;
+  margin-bottom: 0.06em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Space between paragraphs (not line-height within a paragraph) */
+p {
+  margin-top: 0.1em !important;
+  margin-bottom: 0.14em !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* List block vs bullet line: separate from p */
+ul {
+  margin-top: 0.12em;
+  margin-bottom: 0.16em;
+  padding-left: 1.2em;
+}
+
+li {
+  margin-top: 0.05em;
+  margin-bottom: 0.08em;
+}
+
+a {
+  color: #000;
+  text-decoration: none;
+}
+
+/* Section dividers from Markdown ---; tight margins override xhtml2pdf DEFAULT_CSS 1em */
+hr {
+  border: 0 !important;
+  border-top: 1px solid #888 !important;
+  height: 0 !important;
+  margin: 0.4em 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  visibility: visible !important;
+}
+
+/*
+  Education: same font / line-height as body. First row after h2: margin-top matches h3
+  (Experience uses h2 then h3 with 0.28em top) so text is not tight to the rule.
+*/
+table.resume-edu-line {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.12em;
+  margin-bottom: 0.14em;
+  font-size: 1em;
+  line-height: 1.12;
+  table-layout: fixed;
+}
+
+h2 + table.resume-edu-line {
+  margin-top: 0.28em;
+}
+
+/* Experience: company | location (left), date range right — same idea as education */
+table.resume-exp-line {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.08em;
+  margin-bottom: 0.12em;
+  font-size: 1em;
+  line-height: 1.12;
+  table-layout: fixed;
+}
+
+table.resume-exp-line td {
+  vertical-align: baseline;
+  padding: 0;
+  white-space: nowrap;
+  font-size: 1em;
+  line-height: 1.12;
+}
+
+td.exp-main {
+  width: 78%;
+}
+
+td.exp-dates {
+  text-align: right;
+  white-space: nowrap;
+  font-style: normal;
+  font-weight: normal;
+  padding-left: 0.35em;
+}
+
+span.exp-company {
+  font-weight: bold;
+}
+
+span.exp-meta {
+  font-weight: normal;
+}
+
+h3 + table.resume-exp-line {
+  margin-top: 0.12em;
+}
+
+table.resume-edu-line td {
+  vertical-align: baseline;
+  padding: 0;
+  white-space: nowrap;
+  font-size: 1em;
+  line-height: 1.12;
+}
+
+td.edu-main {
+  width: 86%;
+}
+
+td.edu-year-cell {
+  text-align: right;
+  white-space: nowrap;
+  font-style: normal;
+  font-weight: normal;
+  padding-left: 0.35em;
+}
+
+span.edu-school {
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1em;
+}
+
+span.edu-detail {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 1em;
+}
