@@ -44,6 +44,10 @@ jobs:
       - name: List build output (debug)
         run: ls -la portfolio/dist && test -f portfolio/dist/index.html
 
+      - name: Verify site data in dist (debug)
+        run: |
+          node -e "const j=require('./portfolio/dist/site.json'); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
+
       - name: Upload GitHub Pages artifact
         if: |
           github.event_name == 'workflow_dispatch' ||

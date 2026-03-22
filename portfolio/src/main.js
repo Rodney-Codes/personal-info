@@ -58,7 +58,8 @@ function renderMarkdownBlock(text) {
 async function loadData() {
   const base = import.meta.env.BASE_URL || "/";
   const url = `${base}site.json`;
-  const res = await fetch(url);
+  // Avoid stale site.json after GitHub Pages deploys (same path; CDN/browser cache).
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Could not load site.json (${res.status}). Run: npm run sync`);
   }
