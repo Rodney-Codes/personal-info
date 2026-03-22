@@ -1,0 +1,11 @@
+{
+  "name": "personal-info",
+  "private": true,
+  "description": "Root convenience scripts; Node deps live in portfolio/",
+  "scripts": {
+    "dev": "npm run dev --prefix portfolio",
+    "build": "npm run build --prefix portfolio",
+    "sync": "npm run sync --prefix portfolio",
+    "preview": "npm run preview --prefix portfolio"
+  }
+}
