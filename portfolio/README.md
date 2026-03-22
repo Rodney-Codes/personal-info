@@ -8,7 +8,7 @@ Hero + narrative sections from **`portfolio.md`**, metric-style strip, **Work hi
 
 ## Prerequisites
 
-- **Node.js** 18, 20, or 22+ (see **`engines`** in `package.json`; Vite 6 matches this range)
+- **Node.js** 18, 20, 22, or 24+ (see **`engines`** in `package.json`; GitHub Actions uses **24**)
 - **npm**
 - **`content/resume.md`** (required), **`content/portfolio.md`** (optional but recommended)
 - Optional **`artifacts/resume.pdf`** for the download button
