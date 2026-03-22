@@ -120,6 +120,14 @@ After the closing `---` of frontmatter (or from the top of the file if no frontm
 
 Unknown `##` sections are stored in `site.json.portfolio` under a derived key.
 
+## `content/resume.md` Projects (stacked compact)
+
+Under **`## Projects`**, you can list several entries without `###` between them: each entry starts with a full line
+
+`**Name** | Subtitle or stack | Year`
+
+followed by optional blank lines and `-` bullets. Sync splits on each such line when the chunk starts with compact format. **`## Professional Experience`** still uses `###` between roles (or the same rules apply there if you use compact stacks).
+
 ## Extending
 
 - Add sections: extend **`sync-site.mjs`** mapping and **`main.js`** render.

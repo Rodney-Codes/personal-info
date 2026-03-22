@@ -8,6 +8,7 @@ whatIDoBestHeading: What I do best
 impactAtAGlanceHeading: Impact at a glance
 workHighlightsHeading: Work highlights
 workHighlightsLede: Roles and outcomes from your resume, in a portfolio layout.
+projectsHeading: Projects
 educationHeading: Education
 toolsAndStackHeading: Tools and stack
 twoColAriaLabel: Education and tools
