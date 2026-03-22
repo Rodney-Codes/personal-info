@@ -55,7 +55,7 @@ These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`*
 ### GitHub Pages (recommended)
 
 1. Repo **Settings → Pages → Build and deployment**: set **Source** to **GitHub Actions** (not “Deploy from a branch”).
-2. Push to **`main`**: workflow **Portfolio** builds with `GITHUB_PAGES=true` (asset base = `/<repo-name>/`) and deploys **`portfolio/dist/`**.
+2. Push to **`main`**: workflow **Portfolio** builds with `GITHUB_PAGES=true` (asset base = `/<repo-name>/`), archives **`portfolio/dist/`** as a tar (including dotfiles like **`.nojekyll`**), uploads with **`actions/upload-artifact@v6`**, and **`deploy-pages`** publishes it.
 3. Site URL: **`https://<your-username>.github.io/<repository-name>/`** (repository name must match the path segment; GitHub sets `GITHUB_REPOSITORY` in Actions).
 
 **Live site looks wrong but localhost is fine:** GitHub Pages and browsers often **cache `site.json`** (same URL every deploy). The app now loads it with **`cache: no-store`** so new visits pick up fresh data. Still do a **hard refresh** (Ctrl+Shift+R) or wait a few minutes after deploy. Confirm **Actions** ran **deploy** on your default branch and open the site in a **private window**. In the workflow log, check **Verify site data in dist** for empty `footerNote` / `workHighlightsLede` lengths after your changes.

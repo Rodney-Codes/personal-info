@@ -52,13 +52,32 @@ jobs:
         run: |
           node -e "const j=require('./portfolio/dist/site.json'); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
 
+      # Avoid upload-pages-artifact@v4: it pins upload-artifact@v4 (Node 20) and excludes root dotfiles (e.g. .nojekyll).
+      # Same tar layout as upload-pages-artifact v3 + upload-artifact@v6 (Node 24).
+      - name: Archive GitHub Pages artifact
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --dereference --hard-dereference \
+            --directory "portfolio/dist" \
+            -cvf "${RUNNER_TEMP}/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+
       - name: Upload GitHub Pages artifact
         if: |
           github.event_name == 'workflow_dispatch' ||
           (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          path: portfolio/dist
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
   deploy:
     if: |
