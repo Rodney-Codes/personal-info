@@ -1,6 +1,6 @@
 # Rohit Raj
 
-(+91) 9431730420 | [rohitraj3552008@gmail.com](mailto:rohitraj3552008@gmail.com) | [LinkedIn](https://www.linkedin.com/in/rohit-raj-b50809104/) | [GitHub](https://github.com/Rodney-Codes)
+(+91) 9431730420 | [rohitraj3552008@gmail.com](mailto:rohitraj3552008@gmail.com) | [LinkedIn](https://www.linkedin.com/in/rohit-raj-b50809104/) | [GitHub](https://github.com/Rodney-Codes) | [Portfolio](https://rodney-codes.github.io/personal-info/)
 
 ---
 
@@ -40,6 +40,14 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 
 ---
 
+## Projects
+
+**Resume and portfolio builder** | Markdown, Vite, Python PDF tooling | 2026
+
+- Open-source personal-info (MIT) project for one source for resume and portfolio, less duplicate work, and a small sandbox to learn static sites, CI, and light automation.
+
+---
+
 ## Education
 
 @edu Indian Institute of Technology | B.Tech, Metallurgical & Materials Engineering – Kharagpur, WB | 2021
@@ -49,6 +57,5 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 
 ## Technical Skills
 
-@tech Languages | SQL (MySQL, MS SQL, Postgres), Python, Mongo, VBA, C/C++, R |
-@tech Tools | AWS EC2, Metabase, Power BI, Tableau, Redash, ClickHouse |
-@tech Libraries | openpyxl, pandas, NumPy, Matplotlib |
+@tech Languages | SQL, Python, Mongo, VBA, C/C++, R |
+@tech Tools | AWS EC2/LightSail, Metabase, Power BI, Tableau, Redash, ClickHouse |

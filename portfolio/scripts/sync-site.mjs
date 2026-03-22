@@ -24,6 +24,7 @@ function parseContactLine(line) {
     email: { text: "", href: "" },
     linkedin: { text: "", href: "" },
     github: { text: "", href: "" },
+    portfolio: { text: "", href: "" },
   };
   const segments = line.split("|").map((s) => s.trim());
   for (const seg of segments) {
@@ -36,6 +37,8 @@ function parseContactLine(line) {
         contact.linkedin = { text: md[1], href: md[2] };
       } else if (lower.includes("github")) {
         contact.github = { text: md[1], href: md[2] };
+      } else if (lower.includes("portfolio")) {
+        contact.portfolio = { text: md[1], href: md[2] };
       }
     } else if (seg.length > 0 && !seg.startsWith("[")) {
       contact.phone = contact.phone ? `${contact.phone} | ${seg}` : seg;
@@ -74,8 +77,52 @@ function extractResumeSections(text) {
   return { name, contactLine, sections: map };
 }
 
+/** Matches **left** | middle | right (used for role/org line and compact project rows). */
+const TRIPLE_META_LINE =
+  /^\*\*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*(.+?)\s*$/;
+
+function parseTripleMetaLine(line) {
+  const m = line.trim().match(TRIPLE_META_LINE);
+  if (!m) return null;
+  return { left: m[1].trim(), middle: m[2].trim(), right: m[3].trim() };
+}
+
+function collectBulletsFrom(lines, startIndex) {
+  const bullets = [];
+  for (let i = startIndex; i < lines.length; i++) {
+    const raw = lines[i];
+    const ln = typeof raw === "string" ? raw.trim() : "";
+    if (ln.startsWith("- ")) bullets.push(ln.slice(2).trim());
+  }
+  return bullets;
+}
+
+/** Split lines where a new full-line **a** | b | c row begins (stacked compact projects). */
+const COMPACT_STACK_SPLIT =
+  /(?=^\*\*.+?\*\*\s*\|\s*.+?\s*\|\s*.+?\s*$)/m;
+
 /**
- * First job often starts with ### at column 0, so split(/\n### /) leaves "### Title" in chunk[0].
+ * If chunk starts with a compact triple-meta row, split into one sub-chunk per such row
+ * (multiple projects back-to-back without ###). Classic chunks (plain title first) unchanged.
+ */
+function subsplitCompactStacks(chunk) {
+  const t = chunk.trim();
+  if (!t) return [];
+  const firstLine = t.split("\n")[0].trim().replace(/^#+\s*/, "");
+  if (!parseTripleMetaLine(firstLine)) {
+    return [t];
+  }
+  return t
+    .split(COMPACT_STACK_SPLIT)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Splits on ### job/project headings. Supports:
+ * - Classic: title line, then **Company** | Location | Dates, then bullets
+ * - Compact: first line **Name** | Subtitle/stack | Year (no ###), then bullets (optional blank lines)
+ * - Stacked compact: several **Name** | ... | Year blocks in one section, separated by blank lines
  */
 function parseExperience(body) {
   const jobs = [];
@@ -85,23 +132,45 @@ function parseExperience(body) {
   }
   const parts = normalized.split(/\n### /);
   for (const part of parts) {
-    const chunk = part.trim();
-    if (!chunk) continue;
-    const lines = chunk.split("\n");
-    const title = lines[0].trim().replace(/^#+\s*/, "");
-    const metaLine = (lines[1] || "").trim();
-    const metaMatch = metaLine.match(
-      /^\*\*(.+?)\*\*\s*\|\s*(.+?)\s*\|\s*(.+)$/,
-    );
-    const company = metaMatch ? metaMatch[1].trim() : "";
-    const location = metaMatch ? metaMatch[2].trim() : "";
-    const dates = metaMatch ? metaMatch[3].trim() : "";
-    const bullets = [];
-    for (let i = 2; i < lines.length; i++) {
-      const ln = lines[i];
-      if (ln.startsWith("- ")) bullets.push(ln.slice(2).trim());
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const stacks = subsplitCompactStacks(trimmed);
+    for (const chunk of stacks) {
+      const lines = chunk.split("\n");
+      const firstLine = lines[0].trim().replace(/^#+\s*/, "");
+      const tripleOnFirst = parseTripleMetaLine(firstLine);
+      const secondTrim = (lines[1] || "").trim();
+
+      if (
+        tripleOnFirst &&
+        (lines.length === 1 ||
+          secondTrim === "" ||
+          secondTrim.startsWith("-"))
+      ) {
+        jobs.push({
+          title: tripleOnFirst.left,
+          company: tripleOnFirst.middle,
+          location: "",
+          dates: tripleOnFirst.right,
+          bullets: collectBulletsFrom(lines, 1),
+        });
+        continue;
+      }
+
+      const title = firstLine;
+      const metaLine = secondTrim;
+      const metaMatch = metaLine.match(TRIPLE_META_LINE);
+      const company = metaMatch ? metaMatch[1].trim() : "";
+      const location = metaMatch ? metaMatch[2].trim() : "";
+      const dates = metaMatch ? metaMatch[3].trim() : "";
+      jobs.push({
+        title,
+        company,
+        location,
+        dates,
+        bullets: collectBulletsFrom(lines, 2),
+      });
     }
-    jobs.push({ title, company, location, dates, bullets });
   }
   return jobs;
 }
@@ -154,6 +223,7 @@ const DEFAULT_PORTFOLIO_UI = {
   workHighlightsHeading: "Work highlights",
   workHighlightsLede:
     "Roles and outcomes from your resume, in a portfolio layout.",
+  projectsHeading: "Projects",
   educationHeading: "Education",
   toolsAndStackHeading: "Tools and stack",
   twoColAriaLabel: "Education and tools",
@@ -264,6 +334,11 @@ function main() {
     ...j,
     displayTitle: j.title,
   }));
+  const projectsRaw = parseExperience(sections["Projects"] || "");
+  const projects = projectsRaw.map((j) => ({
+    ...j,
+    displayTitle: j.title,
+  }));
   const education = parseEducation(sections["Education"] || "");
   const skills = parseTech(sections["Technical Skills"] || "");
   const first = name.split(/\s+/)[0] || name;
@@ -282,6 +357,7 @@ function main() {
     summary,
     portfolio,
     experience,
+    projects,
     education,
     skills,
     pdfAvailable: fs.existsSync(PDF_SRC),

@@ -91,6 +91,15 @@ function renderContact(c) {
       `<span class="contact-field"><span class="contact-label">github:</span> <a class="contact-value" href="${esc(c.github.href)}" rel="noopener noreferrer" target="_blank">${esc(githubDisplay)}</a></span>`,
     );
   }
+  if (c.portfolio?.href) {
+    const portfolioDisplay =
+      (c.portfolio.text && String(c.portfolio.text).trim()) ||
+      profileHandleFromUrl(c.portfolio.href) ||
+      "Portfolio";
+    fields.push(
+      `<span class="contact-field"><span class="contact-label">portfolio:</span> <a class="contact-value" href="${esc(c.portfolio.href)}" rel="noopener noreferrer" target="_blank">${esc(portfolioDisplay)}</a></span>`,
+    );
+  }
   return `<div class="contact-row contact-row--labeled">${fields.join("")}</div>`;
 }
 
@@ -101,9 +110,16 @@ function renderExperience(jobs) {
       <article class="experience-card experience-card--story">
         <h3>${esc(job.displayTitle || job.title)}</h3>
         <p class="experience-meta">
-          <strong>${esc(job.company)}</strong>
-          ${job.location ? ` &middot; ${esc(job.location)}` : ""}
-          ${job.dates ? ` &middot; ${esc(job.dates)}` : ""}
+          ${["company", "location", "dates"]
+            .map((k) => {
+              const v = job[k];
+              if (!v || !String(v).trim()) return "";
+              return k === "company"
+                ? `<strong>${esc(v)}</strong>`
+                : esc(v);
+            })
+            .filter(Boolean)
+            .join(" &middot; ")}
         </p>
         <ul>
           ${job.bullets.map((b) => `<li>${inlineBold(b)}</li>`).join("")}
@@ -211,6 +227,14 @@ function render(data) {
         <p class="section-lede">${esc(u.workHighlightsLede || "Roles and outcomes from your resume, in a portfolio layout.")}</p>
         ${renderExperience(data.experience)}
       </section>
+      ${
+        data.projects && data.projects.length
+          ? `<section aria-labelledby="proj-heading">
+        <h2 id="proj-heading" class="section-title">${esc(u.projectsHeading || "Projects")}</h2>
+        ${renderExperience(data.projects)}
+      </section>`
+          : ""
+      }
       <section class="two-col-wrap" aria-label="${esc(u.twoColAriaLabel || "Education and tools")}">
         <div class="two-col">
           <div>
