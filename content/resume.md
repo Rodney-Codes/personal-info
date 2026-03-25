@@ -6,7 +6,7 @@
 
 ## Professional Summary
 
-Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL workflows, data modeling, and analysis within the Pharma consulting and EdTech domains. Proficient in SQL and Python, with experience in setting up databases on AWS EC2 and Lighsail servers. Skilled in data engineering and Google Analytics, with a proven track record of collaborating with cross-functional teams and clients to design and implement impactful data solutions.
+Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL workflows, data modeling, and analysis within the Pharma consulting and EdTech domains. Proficient in SQL and Python, with experience in setting up databases on AWS EC2 and Lightsail servers. Skilled in data engineering and Google Analytics, with a proven track record of collaborating with cross-functional teams and clients to design and implement impactful data solutions.
 
 ---
 
@@ -15,11 +15,11 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 ### Data Analyst
 **Masai** | Bengaluru, Karnataka | Jul 2024 -- Present
 
-- Architected an automated pipeline for student placement recommendations, **reducing manual effort and cutting revenue costs by 60%**
-- Streamlined and automated revenue metric dashboards with recurring trends, **improving cost efficiency by 15% in business development operations**
+- Architected an automated pipeline for student placement recommendations, **reducing manual effort and cutting revenue-side costs by 60%**
+- Streamlined and automated revenue-metric dashboards to highlight recurring trends, **improving cost efficiency by 15% in business development operations**
 - Developed automated web scrapers for lead generation, **resulting in monthly savings of INR 1.2L**
 - Migrated pipelines to GitHub and AWS EC2 crons while spearheading comprehensive pipeline documentation
-- **Implemented weekly recurring dashboards on Metabase** to track daily operations and marketing channels, migrating from spreadsheet-based reporting to enhance efficiency
+- **Implemented weekly dashboards on Metabase** to track daily operations and marketing channels, migrating from spreadsheet-based reporting to enhance efficiency
 - Designed and deployed webhooks along supporting data architecture from several NBFC institutions for reconciliation, **reducing quarterly manual efforts by roughly 17%**
 - **Architected the core resume–job description matching engine** for an AI-native interview and hiring platform, **pairing structured extractions from resumes and role postings with LLM-based fit scores and confidence indices**, supporting a successful follow-on funding round
 - Delivered an automated document-generation workflow for digital admission letters and student identification cards, **reducing operations-team manual effort by 60%**
@@ -44,7 +44,7 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 
 **Resume and portfolio builder** | Markdown, Vite, Python PDF tooling | 2026
 
-- Open-source personal-info (MIT) project for one source for resume and portfolio, less duplicate work, and a small sandbox to learn static sites, CI, and light automation.
+- Started an open-source project to create a single source of truth for resumes and portfolios, reducing duplicated work, and building a small sandbox to learn static sites, CI, and lightweight automation.
 
 ---
 

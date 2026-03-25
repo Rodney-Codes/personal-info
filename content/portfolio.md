@@ -1,5 +1,5 @@
 ---
-heroTagline: "Hi, I'm {{firstName}}. I'm an analyst by profession, engineer by education, human by nature."
+heroTagline: "Hi, I'm {{firstName}}. I'm an analyst by profession, an engineer by education, and a human by nature."
 eyebrow: Portfolio
 metaTitleSuffix: Portfolio
 pdfButton: Download PDF resume
