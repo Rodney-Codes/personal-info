@@ -7,6 +7,83 @@ This document is designed so you can give it to another AI model to reliably und
 4) what files/configurations are the source of truth, and
 5) where to change things without breaking the pipeline.
 
+## 0. Repo setup requirements (for AI + humans)
+
+An AI agent should confirm environment setup before running build or validation commands.
+
+### 0.1 Python requirements
+
+- Use a **local virtual environment** only:
+  - venv path: `.venv/`
+  - expected interpreter path on Windows: `.venv/Scripts/python.exe`
+- Recommended Python version:
+  - `3.11` (matches `pyrightconfig.json` and editor settings)
+- Python dependencies:
+  - install from `requirements.txt`
+  - packages: `markdown`, `xhtml2pdf`, `pypdf`
+
+Setup:
+
+1. Create venv (if missing):
+   - `python -m venv .venv`
+2. Activate (PowerShell):
+   - `.\\scripts\\activate_venv.ps1`
+3. Install Python deps:
+   - `pip install -r requirements.txt`
+
+Quick checks:
+
+- `python --version` (expect Python 3.11.x)
+- `python -c "import markdown, xhtml2pdf, pypdf; print('python deps ok')"`
+
+### 0.2 Node.js / npm requirements
+
+- Node is required for `portfolio/`.
+- Version range (from `portfolio/package.json` engines):
+  - `^18.0.0 || ^20.0.0 || >=22.0.0`
+- CI uses Node `24` (`.github/workflows/portfolio.yml`), so Node 24 is the safest match.
+- npm is required (bundled with Node).
+
+Setup:
+
+1. Install a supported Node version (prefer 24).
+2. Install portfolio dependencies:
+   - `cd portfolio`
+   - `npm install`
+
+Quick checks:
+
+- `node -v`
+- `npm -v`
+- `cd portfolio && npm run sync`
+- `cd portfolio && npm run test`
+
+### 0.3 VS Code/Cursor expectations
+
+- `.vscode/settings.json` points default Python interpreter to:
+  - `${workspaceFolder}/.venv/Scripts/python.exe`
+- `python.terminal.activateEnvironment` is enabled.
+- `python.analysis.extraPaths` includes:
+  - `${workspaceFolder}`
+  - `${workspaceFolder}/resume_pdf/src`
+
+### 0.4 Minimal bootstrap command sequence
+
+From repo root:
+
+1. Python side:
+   - `python -m venv .venv`
+   - `.\\scripts\\activate_venv.ps1`
+   - `pip install -r requirements.txt`
+2. Node side:
+   - `cd portfolio`
+   - `npm install`
+3. Validate setup:
+   - `cd ..`
+   - `python -m tools resume build`
+   - `python -m tools portfolio sync`
+   - `python -m tools portfolio build`
+
 ## 1. What this repo is trying to do
 
 The repository publishes a personal **resume PDF** and a **portfolio website** using a single set of canonical Markdown sources:
