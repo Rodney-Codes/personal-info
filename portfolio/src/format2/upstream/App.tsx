@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { NAV_ITEMS, PROJECT_ICONS, categoryIconForLabel } from './constants';
 import SkillChart from './components/SkillChart';
@@ -262,6 +262,68 @@ const BentoProjectCard = ({ project }: { project: any }) => {
   );
 };
 
+/** GitHub login from resume contact (profile root URL only). */
+function githubUsernameFromContact(contact: any): string {
+  const href = contact?.github?.href;
+  if (!href || typeof href !== "string" || !href.trim()) return "";
+  let u: URL;
+  try {
+    const raw = href.trim();
+    u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+  } catch {
+    return "";
+  }
+  const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "github.com") return "";
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (parts.length < 1) return "";
+  const firstSeg = parts[0];
+  if (firstSeg === "orgs" || firstSeg === "enterprise" || firstSeg === "settings")
+    return "";
+  const user = firstSeg;
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(user)) return "";
+  return user;
+}
+
+const GITHUB_AVATAR_STORAGE_PREFIX = "pi_github_avatar:v1:";
+const GITHUB_AVATAR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+type GithubAvatarCache = { url: string; savedAt: number };
+
+function readGithubAvatarCache(login: string): GithubAvatarCache | null {
+  if (typeof window === "undefined" || !login) return null;
+  try {
+    const raw = localStorage.getItem(GITHUB_AVATAR_STORAGE_PREFIX + login);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GithubAvatarCache;
+    if (!parsed || typeof parsed.url !== "string" || !parsed.url.trim()) return null;
+    if (typeof parsed.savedAt !== "number" || Number.isNaN(parsed.savedAt)) return null;
+    return { url: parsed.url.trim(), savedAt: parsed.savedAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeGithubAvatarCache(login: string, url: string): void {
+  if (typeof window === "undefined" || !login || !url.trim()) return;
+  try {
+    const payload: GithubAvatarCache = { url: url.trim(), savedAt: Date.now() };
+    localStorage.setItem(GITHUB_AVATAR_STORAGE_PREFIX + login, JSON.stringify(payload));
+  } catch {
+    // quota / private mode
+  }
+}
+
+function stripUrlQueryForCompare(href: string): string {
+  try {
+    const u = new URL(href, typeof window !== "undefined" ? window.location.href : "https://example.com");
+    u.search = "";
+    return u.href;
+  } catch {
+    return href;
+  }
+}
+
 const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const [activeSection, setActiveSection] = useState('about');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -335,11 +397,65 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
     "Featured Projects";
   const baseUrl = ((import.meta as any).env?.BASE_URL ?? "/") as string;
   const profilePhotoRaw = String(ui.profilePhotoUrl || "").trim();
-  const profilePhotoSrc = profilePhotoRaw
+  const explicitProfilePhotoSrc = profilePhotoRaw
     ? profilePhotoRaw.startsWith("http://") || profilePhotoRaw.startsWith("https://")
       ? profilePhotoRaw
       : `${baseUrl}${profilePhotoRaw.replace(/^\/+/, "")}`
-    : `${baseUrl}local-assets/profile.png`;
+    : "";
+  const localProfileFallback = `${baseUrl}local-assets/profile.png`;
+  const githubUser = useMemo(
+    () => githubUsernameFromContact(data?.contact),
+    [data?.contact?.github?.href],
+  );
+  const optimisticGithubAvatarPng = useMemo(() => {
+    if (!githubUser) return "";
+    return `https://github.com/${githubUser}.png?t=${Date.now()}`;
+  }, [githubUser]);
+  const githubAvatarCacheEntry = useMemo(() => {
+    if (!githubUser || profilePhotoRaw) return null;
+    return readGithubAvatarCache(githubUser);
+  }, [githubUser, profilePhotoRaw]);
+  const githubCachedAvatarUrl = githubAvatarCacheEntry?.url || null;
+  const [gitHubFetchedAvatarSrc, setGitHubFetchedAvatarSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (profilePhotoRaw || !githubUser) {
+      setGitHubFetchedAvatarSrc(null);
+      return;
+    }
+    const cached = readGithubAvatarCache(githubUser);
+    const cacheFresh =
+      cached &&
+      Date.now() - cached.savedAt < GITHUB_AVATAR_CACHE_TTL_MS;
+    if (cacheFresh) {
+      setGitHubFetchedAvatarSrc(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`https://api.github.com/users/${encodeURIComponent(githubUser)}`, {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j) => {
+        const u = j?.avatar_url;
+        if (cancelled || typeof u !== "string" || !u.trim()) return;
+        const base = u.trim();
+        writeGithubAvatarCache(githubUser, base);
+        const bust = `${base.includes("?") ? "&" : "?"}t=${Date.now()}`;
+        setGitHubFetchedAvatarSrc(`${base}${bust}`);
+      })
+      .catch(() => {
+        if (!cancelled) setGitHubFetchedAvatarSrc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profilePhotoRaw, githubUser]);
+  const profilePhotoSrc =
+    explicitProfilePhotoSrc ||
+    gitHubFetchedAvatarSrc ||
+    githubCachedAvatarUrl ||
+    optimisticGithubAvatarPng ||
+    localProfileFallback;
   const profilePhotoAlt = profileName || "Profile photo";
   const pdfFile = runtime?.pdfFile ? String(runtime.pdfFile).trim() : "";
   const resumePdfHref =
@@ -801,9 +917,30 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                       clipPath: 'ellipse(50% 65% at 50% 65%)'
                     }}
                     onError={(e) => {
-                      e.currentTarget.src =
+                      const el = e.currentTarget;
+                      const cur = stripUrlQueryForCompare(el.src);
+                      if (
+                        !explicitProfilePhotoSrc &&
+                        githubCachedAvatarUrl &&
+                        stripUrlQueryForCompare(githubCachedAvatarUrl) !== cur
+                      ) {
+                        el.src = githubCachedAvatarUrl;
+                        return;
+                      }
+                      if (!explicitProfilePhotoSrc && githubUser) {
+                        const png = `https://github.com/${githubUser}.png`;
+                        if (stripUrlQueryForCompare(png) !== cur) {
+                          el.src = png;
+                          return;
+                        }
+                      }
+                      if (stripUrlQueryForCompare(localProfileFallback) !== cur) {
+                        el.src = localProfileFallback;
+                        return;
+                      }
+                      el.src =
                         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop";
-                      e.currentTarget.onerror = null;
+                      el.onerror = null;
                     }}
                   />
                   {/* Subtle overlay gradient on hover only */}

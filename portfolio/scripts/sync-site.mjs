@@ -112,59 +112,6 @@ function parseContactLine(line) {
   return contact;
 }
 
-/** GitHub login from resume contact line (profile or org root URL only). */
-function githubUsernameFromResumeContact(contact) {
-  const href = contact?.github?.href;
-  if (!href || typeof href !== "string" || !href.trim()) return "";
-  let u;
-  try {
-    const raw = href.trim();
-    u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
-  } catch {
-    return "";
-  }
-  const host = u.hostname.replace(/^www\./i, "").toLowerCase();
-  if (host !== "github.com") return "";
-  const parts = u.pathname.split("/").filter(Boolean);
-  if (parts.length < 1) return "";
-  const firstSeg = parts[0];
-  if (firstSeg === "orgs" || firstSeg === "enterprise" || firstSeg === "settings")
-    return "";
-  const user = firstSeg;
-  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(user)) return "";
-  return user;
-}
-
-/**
- * Resolve current avatar via GitHub API + cache-buster so new profile photos
- * show after redeploy without stale browser/CDN copies of avatars.githubusercontent.com.
- */
-async function fetchGitHubAvatarForContact(contact) {
-  const user = githubUsernameFromResumeContact(contact);
-  if (!user) return "";
-  const fallback = `https://github.com/${user}.png`;
-  try {
-    const res = await fetch(
-      `https://api.github.com/users/${encodeURIComponent(user)}`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "personal-info-portfolio-sync",
-        },
-      },
-    );
-    if (!res.ok) return fallback;
-    const data = await res.json();
-    const raw = data?.avatar_url;
-    if (typeof raw !== "string" || !raw.trim()) return fallback;
-    const base = raw.trim();
-    const cb = Date.now();
-    return `${base}${base.includes("?") ? "&" : "?"}cb=${cb}`;
-  } catch {
-    return fallback;
-  }
-}
-
 function extractResumeSections(text) {
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
@@ -466,7 +413,7 @@ function parsePortfolioMdFile() {
   return { portfolio, frontmatter };
 }
 
-async function main() {
+function main() {
   if (!fs.existsSync(MD_RESUME)) {
     console.error("Missing:", MD_RESUME);
     process.exit(1);
@@ -495,10 +442,6 @@ async function main() {
 
   const { portfolio, frontmatter } = parsePortfolioMdFile();
   const ui = buildPortfolioUi(frontmatter, first);
-  if (!String(ui.profilePhotoUrl || "").trim()) {
-    const inferred = await fetchGitHubAvatarForContact(contact);
-    if (inferred) ui.profilePhotoUrl = inferred;
-  }
 
   const site = {
     meta: {
@@ -566,7 +509,4 @@ async function main() {
   console.log("Wrote", path.relative(REPO_ROOT, WORKFLOW.buildManifest));
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main();
