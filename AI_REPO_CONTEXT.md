@@ -379,7 +379,7 @@ The in-memory object passed to React uses **`pdfFile`** (not `resume_pdf_file`);
 |-------|--------|
 | `meta` | `title`, `description` |
 | `name` | From resume `#` line |
-| `ui` | Merged defaults + portfolio format + frontmatter; includes `templateVariant`, `heroTagline`, `pdfButton`, etc. |
+| `ui` | Merged defaults + portfolio format + frontmatter; includes `templateVariant`, `heroTagline`, `pdfButton`, `profilePhotoUrl` (optional; sync may infer `https://github.com/{user}.png` from resume GitHub contact), etc. |
 | `contact` | `phone`, `email`, `linkedin`, `github`, `portfolio` (shaped objects where applicable) |
 | `summary` | Professional summary text |
 | `portfolio` | Narrative sections from portfolio markdown |

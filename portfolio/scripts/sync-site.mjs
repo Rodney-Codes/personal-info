@@ -112,6 +112,32 @@ function parseContactLine(line) {
   return contact;
 }
 
+/**
+ * When ui.profilePhotoUrl is empty, use GitHub profile image from resume contact
+ * (https://github.com/{user}.png redirects to avatars.githubusercontent.com).
+ */
+function profilePhotoUrlFromGitHubContact(contact) {
+  const href = contact?.github?.href;
+  if (!href || typeof href !== "string" || !href.trim()) return "";
+  let u;
+  try {
+    const raw = href.trim();
+    u = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+  } catch {
+    return "";
+  }
+  const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "github.com") return "";
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (parts.length < 1) return "";
+  const firstSeg = parts[0];
+  if (firstSeg === "orgs" || firstSeg === "enterprise" || firstSeg === "settings")
+    return "";
+  const user = firstSeg;
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(user)) return "";
+  return `https://github.com/${user}.png`;
+}
+
 function extractResumeSections(text) {
   const normalized = text.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
@@ -438,9 +464,14 @@ function main() {
   const education = parseEducation(sections["Education"] || "");
   const skills = parseTech(sections["Technical Skills"] || "");
   const first = name.split(/\s+/)[0] || name;
+  const contact = parseContactLine(contactLine);
 
   const { portfolio, frontmatter } = parsePortfolioMdFile();
   const ui = buildPortfolioUi(frontmatter, first);
+  if (!String(ui.profilePhotoUrl || "").trim()) {
+    const inferred = profilePhotoUrlFromGitHubContact(contact);
+    if (inferred) ui.profilePhotoUrl = inferred;
+  }
 
   const site = {
     meta: {
@@ -449,7 +480,7 @@ function main() {
     },
     name,
     ui,
-    contact: parseContactLine(contactLine),
+    contact,
     summary,
     portfolio,
     experience,

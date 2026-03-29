@@ -20,10 +20,13 @@ The active **`templates/portfolio_formats/<portfolio_format_id>.json`** sets `te
 
 ## Format2 hero photo
 
-- **`portfolio/public/local-assets/profile.png`** is **gitignored**, so it does not ship to GitHub Pages. The UI then 404s that URL and shows a generic fallback unless you configure a photo.
-- Set **`profilePhotoUrl`** in portfolio **frontmatter** or in **`templates/portfolio_formats/<id>.json`** under **`ui_defaults`**:
-  - **HTTPS URL** to your headshot (recommended for Pages), or
-  - A **committed** file under **`portfolio/public/`** (e.g. `headshot.jpg`), then `profilePhotoUrl: "headshot.jpg"` (path relative to site root, no leading slash).
+Resolution order (see **`scripts/sync-site.mjs`**):
+
+1. **`profilePhotoUrl`** in portfolio **frontmatter** (or non-empty **`ui_defaults`** in the portfolio format manifest) — full `https://` URL or a path under **`portfolio/public/`** (e.g. `headshot.jpg`).
+2. Else, if the resume contact line has a **GitHub** link, sync sets **`profilePhotoUrl`** to **`https://github.com/{username}.png`**, which redirects to your **GitHub profile avatar** (works on GitHub Pages with no extra files).
+3. Else the app falls back to **`local-assets/profile.png`** (gitignored, local-only) and then the **`onError`** stock image if that file is missing.
+
+So production stays wrong only if there is **no** frontmatter URL/path, **no** GitHub link on the resume, and **no** committed image under **`public/`**.
 
 ## Commands
 
