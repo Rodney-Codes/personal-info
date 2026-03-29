@@ -334,6 +334,13 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
     (ui.projectsHeading && String(ui.projectsHeading).trim()) ||
     "Featured Projects";
   const baseUrl = ((import.meta as any).env?.BASE_URL ?? "/") as string;
+  const profilePhotoRaw = String(ui.profilePhotoUrl || "").trim();
+  const profilePhotoSrc = profilePhotoRaw
+    ? profilePhotoRaw.startsWith("http://") || profilePhotoRaw.startsWith("https://")
+      ? profilePhotoRaw
+      : `${baseUrl}${profilePhotoRaw.replace(/^\/+/, "")}`
+    : `${baseUrl}local-assets/profile.png`;
+  const profilePhotoAlt = profileName || "Profile photo";
   const pdfFile = runtime?.pdfFile ? String(runtime.pdfFile).trim() : "";
   const resumePdfHref =
     data?.pdfAvailable && pdfFile ? `${baseUrl}${pdfFile}` : null;
@@ -787,14 +794,15 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                 <div className="w-full h-full rounded-full border-4 border-slate-100 relative overflow-visible">
                   {/* Photo extends upward beyond the circular frame */}
                   <img
-                    src={`${baseUrl}local-assets/profile.png`}
-                    alt="Surya Prakash Manubolu"
+                    src={profilePhotoSrc}
+                    alt={profilePhotoAlt}
                     className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[110%] h-[130%] object-cover object-top transform transition-all duration-500 group-hover:scale-105 rounded-full"
                     style={{
                       clipPath: 'ellipse(50% 65% at 50% 65%)'
                     }}
                     onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop";
+                      e.currentTarget.src =
+                        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop";
                       e.currentTarget.onerror = null;
                     }}
                   />

@@ -27,6 +27,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build resume PDF (workflow-selected)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m tools resume build
+
       - uses: actions/setup-node@v6
         with:
           node-version: "24"
@@ -52,7 +62,7 @@ jobs:
 
       - name: Verify site data in dist (debug)
         run: |
-          node -e "const fs=require('fs'); const path=require('path'); const runtimePath=path.resolve('./portfolio/dist/workflow.runtime.json'); const runtime=JSON.parse(fs.readFileSync(runtimePath,'utf8')); const sitePath=path.resolve('./portfolio/dist', runtime.site_json_file); const j=JSON.parse(fs.readFileSync(sitePath,'utf8')); console.log('site file:', runtime.site_json_file); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
+          node -e "const fs=require('fs'); const path=require('path'); const runtimePath=path.resolve('./portfolio/dist/workflow.runtime.json'); const runtime=JSON.parse(fs.readFileSync(runtimePath,'utf8')); const sitePath=path.resolve('./portfolio/dist', runtime.site_json_file); const j=JSON.parse(fs.readFileSync(sitePath,'utf8')); console.log('site file:', runtime.site_json_file); console.log('pdfAvailable:', j.pdfAvailable); console.log('profilePhotoUrl set:', !!(j.ui&&j.ui.profilePhotoUrl)); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
 
       # Avoid upload-pages-artifact@v4: it pins upload-artifact@v4 (Node 20) and excludes root dotfiles (e.g. .nojekyll).
       # Same tar layout as upload-pages-artifact v3 + upload-artifact@v6 (Node 24).

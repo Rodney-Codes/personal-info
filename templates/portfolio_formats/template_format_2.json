@@ -10,7 +10,8 @@
     "projectsHeading": "Featured Projects",
     "workHighlightsHeading": "Professional Journey",
     "impactAtAGlanceHeading": "Results that matter",
-    "toolsAndStackHeading": "Core Competencies"
+    "toolsAndStackHeading": "Core Competencies",
+    "profilePhotoUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop"
   },
   "section_mapping": {
     "About me": "aboutMe",

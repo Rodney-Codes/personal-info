@@ -448,7 +448,7 @@ Jobs:
 
 Note:
 
-- The CI workflow does not run the Python resume PDF generator. The PDF download button depends on whether `artifacts/<outputs.resume_pdf>` exists at sync time (`pdfAvailable`).
+- The **Portfolio** workflow runs **`python -m tools resume build`** before **`npm run sync`**, so `artifacts/<outputs.resume_pdf>` exists in CI and `pdfAvailable` is true when the build succeeds. The download button requires that PDF plus `runtime.pdfFile` in the client.
 
 ## 7. Extension points (how to add features safely)
 

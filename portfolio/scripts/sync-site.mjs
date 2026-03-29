@@ -312,6 +312,8 @@ const DEFAULT_PORTFOLIO_UI = {
   footerNote: "",
   photoProjectsDelivered: "15+",
   photoProjectsDeliveredDescription: "",
+  /** Full https URL or site-relative path under portfolio/public (e.g. headshot.jpg). Empty = App fallback. */
+  profilePhotoUrl: "",
 };
 
 if (

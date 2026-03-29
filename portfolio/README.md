@@ -16,7 +16,14 @@ The active **`templates/portfolio_formats/<portfolio_format_id>.json`** sets `te
 - **npm**
 - active workflow config at **`config/workflow.active.json`**
 - selected resume markdown and portfolio markdown files from workflow IDs
-- selected resume PDF in **`artifacts/<outputs.resume_pdf>`** for the download button
+- for **local** `npm run sync`: run **`python -m tools resume build`** first so **`artifacts/<outputs.resume_pdf>`** exists (enables **`pdfAvailable`** and the hero download button). **GitHub Actions** runs that Python step before **`npm run sync`**.
+
+## Format2 hero photo
+
+- **`portfolio/public/local-assets/profile.png`** is **gitignored**, so it does not ship to GitHub Pages. The UI then 404s that URL and shows a generic fallback unless you configure a photo.
+- Set **`profilePhotoUrl`** in portfolio **frontmatter** or in **`templates/portfolio_formats/<id>.json`** under **`ui_defaults`**:
+  - **HTTPS URL** to your headshot (recommended for Pages), or
+  - A **committed** file under **`portfolio/public/`** (e.g. `headshot.jpg`), then `profilePhotoUrl: "headshot.jpg"` (path relative to site root, no leading slash).
 
 ## Commands
 
@@ -57,7 +64,7 @@ The hero PDF link serves `public/<outputs.resume_pdf>` from the active workflow.
 - **`npm run test`** – Vitest unit tests (e.g. URL handle helper).
 - **`npm run validate:site`** – smoke check for workflow-selected site JSON from `public/workflow.runtime.json` (run **`npm run sync`** first).
 
-These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`**).
+These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`**). The workflow also runs **`python -m tools resume build`** before **`npm run sync`** so the PDF and **`pdfAvailable`** are present in **`dist/`**.
 
 ## Deploy
 
