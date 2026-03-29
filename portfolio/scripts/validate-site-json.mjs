@@ -1,18 +1,37 @@
 /**
- * Validates portfolio/public/site.json shape after sync (CI / local smoke check).
+ * Validates workflow-selected site JSON shape after sync.
  */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SITE_JSON = path.join(__dirname, "..", "public", "site.json");
+const PUBLIC_DIR = path.join(__dirname, "..", "public");
+const RUNTIME_JSON = path.join(PUBLIC_DIR, "workflow.runtime.json");
 
 function fail(msg) {
   console.error("validate-site-json:", msg);
   process.exit(1);
 }
 
+if (!fs.existsSync(RUNTIME_JSON)) {
+  fail(`missing ${RUNTIME_JSON} — run: npm run sync`);
+}
+
+let runtime;
+try {
+  runtime = JSON.parse(fs.readFileSync(RUNTIME_JSON, "utf8"));
+} catch (e) {
+  fail(`invalid runtime JSON: ${e.message}`);
+}
+const siteFile =
+  runtime && typeof runtime.site_json_file === "string" && runtime.site_json_file.trim()
+    ? runtime.site_json_file.trim()
+    : "";
+if (!siteFile) {
+  fail('expected non-empty string "site_json_file" in workflow.runtime.json');
+}
+const SITE_JSON = path.join(PUBLIC_DIR, siteFile);
 if (!fs.existsSync(SITE_JSON)) {
   fail(`missing ${SITE_JSON} — run: npm run sync`);
 }

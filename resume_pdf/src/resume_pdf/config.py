@@ -11,8 +11,8 @@ from typing import Any
 
 # Defaults when build_config.json is missing; paths are relative to resume_pdf/ (tool root).
 DEFAULT_CONFIG: dict[str, Any] = {
-    "input_md": "../content/resume.md",
-    "output_pdf": "../artifacts/resume.pdf",
+    "input_md": "../content/resumes/resume_1.md",
+    "output_pdf": "../artifacts/resume.main_release.pdf",
     "css": "assets/resume.css",
     "document_template": "assets/templates/document.html",
     "education_row_template": "assets/templates/education_row.html",

@@ -42,7 +42,7 @@ def _npm(args: list[str]) -> int:
 @command(
     "portfolio",
     "sync",
-    description="Generate portfolio/public/site.json (and PDF copy) from content/*.md",
+    description="Generate workflow-selected site JSON/PDF assets in portfolio/public.",
 )
 def portfolio_sync(argv: list[str]) -> int:
     return _npm(["run", "sync", *argv])

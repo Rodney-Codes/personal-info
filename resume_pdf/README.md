@@ -1,6 +1,6 @@
 # Resume PDF builder
 
-Builds **`artifacts/resume.pdf`** from **`content/resume.md`** using Markdown, HTML templates, CSS, and xhtml2pdf (no LaTeX).
+Builds **`artifacts/<outputs.resume_pdf>`** from workflow-selected **`content/resumes/<resume_content_id>.md`** using Markdown, HTML templates, CSS, and xhtml2pdf (no LaTeX).
 
 **Design:** Content lives only under `../content/`. This folder holds the PDF-specific **presentation** (CSS, HTML shell, row templates) and the Python package under `src/resume_pdf/`.
 
@@ -64,8 +64,7 @@ For arbitrary Markdown, disable resume-specific preprocessors with the `--no-*` 
 
 See keys in **`build_config.json`**. Defaults in code mirror that file if JSON is missing.
 
-- **`input_md`** — usually `../content/resume.md`
-- **`output_pdf`** — usually `../artifacts/resume.pdf`
+- `input_md` / `output_pdf` defaults still exist in `build_config.json`, but `python -m tools resume build` resolves the active profile from **`config/workflow.active.json`**: it uses `resume_content_id`, `resume_format_id` (manifest under `templates/resume_formats/`), and `outputs.resume_pdf`, unless you pass explicit CLI overrides (`--input`, `--output`, etc.).
 
 ## Markdown conventions (resume)
 

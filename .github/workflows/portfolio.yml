@@ -50,7 +50,7 @@ jobs:
 
       - name: Verify site data in dist (debug)
         run: |
-          node -e "const j=require('./portfolio/dist/site.json'); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
+          node -e "const fs=require('fs'); const path=require('path'); const runtimePath=path.resolve('./portfolio/dist/workflow.runtime.json'); const runtime=JSON.parse(fs.readFileSync(runtimePath,'utf8')); const sitePath=path.resolve('./portfolio/dist', runtime.site_json_file); const j=JSON.parse(fs.readFileSync(sitePath,'utf8')); console.log('site file:', runtime.site_json_file); console.log('ui.footerNote length:', (j.ui&&j.ui.footerNote||'').length); console.log('ui.workHighlightsLede length:', (j.ui&&j.ui.workHighlightsLede||'').length);"
 
       # Avoid upload-pages-artifact@v4: it pins upload-artifact@v4 (Node 20) and excludes root dotfiles (e.g. .nojekyll).
       # Same tar layout as upload-pages-artifact v3 + upload-artifact@v6 (Node 24).

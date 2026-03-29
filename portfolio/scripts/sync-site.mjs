@@ -1,7 +1,5 @@
 /**
- * Builds public/site.json from content/resume.md + content/portfolio.md.
- * Copies resume.pdf when present.
- * Optional YAML frontmatter in portfolio.md controls ui labels and hero tagline.
+ * Builds workflow-selected site JSON, PDF public copy, and runtime metadata.
  */
 import fs from "fs";
 import path from "path";
@@ -12,11 +10,78 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORTFOLIO_ROOT = path.join(__dirname, "..");
 const REPO_ROOT = path.join(PORTFOLIO_ROOT, "..");
 
-const MD_RESUME = path.join(REPO_ROOT, "content", "resume.md");
-const MD_PORTFOLIO = path.join(REPO_ROOT, "content", "portfolio.md");
-const OUT_SITE = path.join(PORTFOLIO_ROOT, "public", "site.json");
-const PDF_SRC = path.join(REPO_ROOT, "artifacts", "resume.pdf");
-const PDF_OUT = path.join(PORTFOLIO_ROOT, "public", "resume.pdf");
+function readJsonObject(filePath) {
+  if (!fs.existsSync(filePath)) {
+    console.error("Missing:", filePath);
+    process.exit(1);
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("expected object JSON");
+    }
+    return parsed;
+  } catch (e) {
+    console.error(`Invalid JSON at ${filePath}:`, e.message);
+    process.exit(1);
+  }
+}
+
+function resolveWorkflow() {
+  const workflowPath = path.join(REPO_ROOT, "config", "workflow.active.json");
+  const cfg = readJsonObject(workflowPath);
+  const required = [
+    "resume_content_id",
+    "portfolio_content_id",
+    "portfolio_format_id",
+    "outputs",
+  ];
+  for (const key of required) {
+    if (!(key in cfg)) {
+      console.error(`workflow.active.json missing key: ${key}`);
+      process.exit(1);
+    }
+  }
+  if (!cfg.outputs || typeof cfg.outputs !== "object" || Array.isArray(cfg.outputs)) {
+    console.error("workflow.active.json outputs must be an object");
+    process.exit(1);
+  }
+  for (const key of ["site_json", "resume_pdf", "build_manifest"]) {
+    if (!cfg.outputs[key] || typeof cfg.outputs[key] !== "string") {
+      console.error(`workflow.active.json outputs.${key} must be a non-empty string`);
+      process.exit(1);
+    }
+  }
+  return {
+    config: cfg,
+    resumeMd: path.join(REPO_ROOT, "content", "resumes", `${cfg.resume_content_id}.md`),
+    portfolioMd: path.join(
+      REPO_ROOT,
+      "content",
+      "portfolios",
+      `${cfg.portfolio_content_id}.md`,
+    ),
+    portfolioFormat: path.join(
+      REPO_ROOT,
+      "templates",
+      "portfolio_formats",
+      `${cfg.portfolio_format_id}.json`,
+    ),
+    outSite: path.join(PORTFOLIO_ROOT, "public", cfg.outputs.site_json),
+    pdfSrc: path.join(REPO_ROOT, "artifacts", cfg.outputs.resume_pdf),
+    pdfOut: path.join(PORTFOLIO_ROOT, "public", cfg.outputs.resume_pdf),
+    buildManifest: path.join(REPO_ROOT, "artifacts", cfg.outputs.build_manifest),
+  };
+}
+
+const WORKFLOW = resolveWorkflow();
+const PORTFOLIO_FORMAT = readJsonObject(WORKFLOW.portfolioFormat);
+const MD_RESUME = WORKFLOW.resumeMd;
+const MD_PORTFOLIO = WORKFLOW.portfolioMd;
+const OUT_SITE = WORKFLOW.outSite;
+const PDF_SRC = WORKFLOW.pdfSrc;
+const PDF_OUT = WORKFLOW.pdfOut;
+const RUNTIME_OUT = path.join(PORTFOLIO_ROOT, "public", "workflow.runtime.json");
 
 function parseContactLine(line) {
   const contact = {
@@ -210,6 +275,23 @@ const PORTFOLIO_SECTION_KEYS = {
   "impact metrics": "impactAtAGlance",
 };
 
+if (
+  PORTFOLIO_FORMAT.section_mapping &&
+  typeof PORTFOLIO_FORMAT.section_mapping === "object" &&
+  !Array.isArray(PORTFOLIO_FORMAT.section_mapping)
+) {
+  for (const [heading, key] of Object.entries(PORTFOLIO_FORMAT.section_mapping)) {
+    if (
+      typeof heading === "string" &&
+      heading.trim() &&
+      typeof key === "string" &&
+      key.trim()
+    ) {
+      PORTFOLIO_SECTION_KEYS[heading.trim().toLowerCase()] = key.trim();
+    }
+  }
+}
+
 /** Defaults when frontmatter is missing or keys are omitted. */
 const DEFAULT_PORTFOLIO_UI = {
   heroTagline:
@@ -228,7 +310,21 @@ const DEFAULT_PORTFOLIO_UI = {
   twoColAriaLabel: "Education and tools",
   letsConnectHeading: "Let's connect",
   footerNote: "",
+  photoProjectsDelivered: "15+",
+  photoProjectsDeliveredDescription: "",
 };
+
+if (
+  PORTFOLIO_FORMAT.ui_defaults &&
+  typeof PORTFOLIO_FORMAT.ui_defaults === "object" &&
+  !Array.isArray(PORTFOLIO_FORMAT.ui_defaults)
+) {
+  for (const [key, value] of Object.entries(PORTFOLIO_FORMAT.ui_defaults)) {
+    if (typeof value === "string" && value.trim()) {
+      DEFAULT_PORTFOLIO_UI[key] = value.trim();
+    }
+  }
+}
 
 function splitPortfolioFrontmatter(raw) {
   const normalized = raw.replace(/\r\n/g, "\n");
@@ -367,8 +463,47 @@ function main() {
 
   if (fs.existsSync(PDF_SRC)) {
     fs.copyFileSync(PDF_SRC, PDF_OUT);
-    console.log("Copied resume.pdf to public/");
+    console.log("Copied", path.relative(PORTFOLIO_ROOT, PDF_OUT));
   }
+
+  const runtime = {
+    profile_id: String(WORKFLOW.config.profile_id || ""),
+    site_json_file: path.basename(OUT_SITE),
+    resume_pdf_file: path.basename(PDF_OUT),
+    generated_at_utc: new Date().toISOString(),
+    selected: {
+      resume_content_id: String(WORKFLOW.config.resume_content_id || ""),
+      portfolio_content_id: String(WORKFLOW.config.portfolio_content_id || ""),
+      resume_format_id: String(WORKFLOW.config.resume_format_id || ""),
+      portfolio_format_id: String(WORKFLOW.config.portfolio_format_id || ""),
+    },
+  };
+  fs.writeFileSync(RUNTIME_OUT, JSON.stringify(runtime, null, 2), "utf8");
+  console.log("Wrote", path.relative(PORTFOLIO_ROOT, RUNTIME_OUT));
+
+  const manifest = {
+    profile_id: String(WORKFLOW.config.profile_id || ""),
+    generated_at_utc: new Date().toISOString(),
+    selected: {
+      resume_content_id: String(WORKFLOW.config.resume_content_id || ""),
+      portfolio_content_id: String(WORKFLOW.config.portfolio_content_id || ""),
+      resume_format_id: String(WORKFLOW.config.resume_format_id || ""),
+      portfolio_format_id: String(WORKFLOW.config.portfolio_format_id || ""),
+    },
+    outputs: {
+      site_json: OUT_SITE,
+      runtime_json: RUNTIME_OUT,
+      resume_pdf_public: PDF_OUT,
+      resume_pdf_source: PDF_SRC,
+    },
+  };
+  fs.mkdirSync(path.dirname(WORKFLOW.buildManifest), { recursive: true });
+  fs.writeFileSync(
+    WORKFLOW.buildManifest,
+    JSON.stringify(manifest, null, 2),
+    "utf8",
+  );
+  console.log("Wrote", path.relative(REPO_ROOT, WORKFLOW.buildManifest));
 }
 
 main();

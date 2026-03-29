@@ -1,0 +1,17 @@
+{
+  "id": "resume_format_1",
+  "document_title": "Resume",
+  "css_path": "resume_pdf/assets/resume.css",
+  "document_template_path": "resume_pdf/assets/templates/document.html",
+  "row_templates": {
+    "education": "resume_pdf/assets/templates/education_row.html",
+    "experience": "resume_pdf/assets/templates/experience_row.html"
+  },
+  "section_types": {
+    "Professional Summary": "prose",
+    "Professional Experience": "timeline",
+    "Projects": "timeline",
+    "Education": "edu_rows",
+    "Technical Skills": "tech_rows"
+  }
+}

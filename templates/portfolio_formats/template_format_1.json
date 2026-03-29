@@ -1,0 +1,17 @@
+{
+  "id": "template_format_1",
+  "renderer": "portfolio_vite",
+  "ui_defaults": {
+    "heroTagline": "Hi, I'm {{firstName}}.",
+    "eyebrow": "Portfolio",
+    "metaTitleSuffix": "Portfolio",
+    "pdfButton": "Download PDF resume",
+    "projectsHeading": "Projects"
+  },
+  "section_mapping": {
+    "About me": "aboutMe",
+    "Let's connect": "letsConnect",
+    "What I do best": "whatIDoBest",
+    "Impact at a glance": "impactAtAGlance"
+  }
+}

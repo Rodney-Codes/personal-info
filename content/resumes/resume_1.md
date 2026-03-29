@@ -6,7 +6,7 @@
 
 ## Professional Summary
 
-Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL workflows, data modeling, and analysis within the Pharma consulting and EdTech domains. Proficient in SQL and Python, with experience in setting up databases on AWS EC2 and Lightsail servers. Skilled in data engineering and Google Analytics, with a proven track record of collaborating with cross-functional teams and clients to design and implement impactful data solutions.
+Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL workflows, data modeling, and analysis within the Pharma consulting and EdTech domains. Proficient in SQL and Python, with experience in setting up databases on AWS EC2 and Lightsail servers. Skilled in data engineering and Google Analytics, with a proven track record of collaborating with cross-functional teams and clients to design and implement impactful data solutions.
 
 ---
 
@@ -21,7 +21,7 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 - Migrated pipelines to GitHub and AWS EC2 crons while spearheading comprehensive pipeline documentation
 - **Implemented weekly dashboards on Metabase** to track daily operations and marketing channels, migrating from spreadsheet-based reporting to enhance efficiency
 - Designed and deployed webhooks along supporting data architecture from several NBFC institutions for reconciliation, **reducing quarterly manual efforts by roughly 17%**
-- **Architected the core resume–job description matching engine** for an AI-native interview and hiring platform, **pairing structured extractions from resumes and role postings with LLM-based fit scores and confidence indices**, supporting a successful follow-on funding round
+- **Architected the core resume-job description matching engine** for an AI-native interview and hiring platform, **pairing structured extractions from resumes and role postings with LLM-based fit scores and confidence indices**, supporting a successful follow-on funding round
 - Delivered an automated document-generation workflow for digital admission letters and student identification cards, **reducing operations-team manual effort by 60%**
 
 ### Decision Analytics Associate
@@ -50,8 +50,8 @@ Experienced Data Analyst with 3+ years of expertise in building end-to-end ETL w
 
 ## Education
 
-@edu Indian Institute of Technology | B.Tech, Metallurgical & Materials Engineering – Kharagpur, WB | 2021
-@edu Jamshedpur Public School | Higher Secondary – Jamshedpur, JH | 2014
+@edu Indian Institute of Technology | B.Tech, Metallurgical & Materials Engineering - Kharagpur, WB | 2021
+@edu Jamshedpur Public School | Higher Secondary - Jamshedpur, JH | 2014
 
 ---
 

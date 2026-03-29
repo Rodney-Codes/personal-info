@@ -1,0 +1,21 @@
+{
+  "id": "template_format_2",
+  "renderer": "portfolio_vite",
+  "ui_defaults": {
+    "templateVariant": "format2",
+    "heroTagline": "I build data systems that get results.",
+    "eyebrow": "Data Portfolio",
+    "metaTitleSuffix": "Data Portfolio",
+    "pdfButton": "Download Resume PDF",
+    "projectsHeading": "Featured Projects",
+    "workHighlightsHeading": "Professional Journey",
+    "impactAtAGlanceHeading": "Results that matter",
+    "toolsAndStackHeading": "Core Competencies"
+  },
+  "section_mapping": {
+    "About me": "aboutMe",
+    "Let's connect": "letsConnect",
+    "What I do best": "whatIDoBest",
+    "Impact at a glance": "impactAtAGlance"
+  }
+}

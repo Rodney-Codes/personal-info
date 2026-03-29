@@ -1,17 +1,25 @@
 # Portfolio site
 
-Vite static site: **`content/resume.md`** (facts) + **`content/portfolio.md`** (narrative + **YAML UI**). Output: **`public/site.json`**.
+Vite static site driven by **`config/workflow.active.json`** selections:
+- resume content from `content/resumes/<resume_content_id>.md`
+- portfolio content from `content/portfolios/<portfolio_content_id>.md`
+- portfolio format from `templates/portfolio_formats/<portfolio_format_id>.json`
+- output files in `public/` from `outputs.*` plus `workflow.runtime.json`
 
 ## Design
 
-Hero + narrative sections from **`portfolio.md`**, metric-style strip, **Work highlights** (resume bullets), education + tools grid, **Let's connect** band.
+- **Format 1** (`ui.templateVariant` omitted or not `format2`): string-template site rendered from `src/main.js` (hero, narrative sections from selected portfolio markdown, metrics, work highlights from resume, education/skills, connect band).
+- **Format 2** (`ui.templateVariant: "format2"` from the selected `templates/portfolio_formats/*.json`): React UI in `src/format2/upstream/App.tsx`, driven by the same generated site JSON + `workflow.runtime.json`.
+
+Static assets (e.g. tech logos under `public/*.png`) are served with the app; profile photos can live in `public/local-assets/` (gitignored) for local builds.
 
 ## Prerequisites
 
 - **Node.js** 18, 20, 22, or 24+ (see **`engines`** in `package.json`; GitHub Actions uses **24**)
 - **npm**
-- **`content/resume.md`** (required), **`content/portfolio.md`** (optional but recommended)
-- Optional **`artifacts/resume.pdf`** for the download button
+- active workflow config at **`config/workflow.active.json`**
+- selected resume markdown and portfolio markdown files from workflow IDs
+- selected resume PDF in **`artifacts/<outputs.resume_pdf>`** for the download button
 
 ## Commands
 
@@ -20,7 +28,7 @@ From **`portfolio/`**:
 | Command | Purpose |
 |---------|---------|
 | `npm install` | Install deps (Vite) |
-| `npm run sync` | `content/*.md` → `public/site.json` (+ PDF copy) |
+| `npm run sync` | Resolve workflow profile -> generate `public/<outputs.site_json>`, `public/<outputs.resume_pdf>`, and `public/workflow.runtime.json` |
 | `npm run dev` | Dev server (runs `sync` first) |
 | `npm run build` | Static output to `dist/` |
 | `npm run preview` | Preview `dist/` |
@@ -46,7 +54,7 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 ## Tests
 
 - **`npm run test`** – Vitest unit tests (e.g. URL handle helper).
-- **`npm run validate:site`** – smoke check that **`public/site.json`** exists and has required fields (run **`npm run sync`** first).
+- **`npm run validate:site`** – smoke check for workflow-selected site JSON from `public/workflow.runtime.json` (run **`npm run sync`** first).
 
 These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`**).
 
@@ -58,7 +66,7 @@ These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`*
 2. Push to **`main`**: workflow **Portfolio** builds with `GITHUB_PAGES=true` (asset base = `/<repo-name>/`), archives **`portfolio/dist/`** as a tar (including dotfiles like **`.nojekyll`**), uploads with **`actions/upload-artifact@v6`**, and **`deploy-pages`** publishes it.
 3. Site URL: **`https://<your-username>.github.io/<repository-name>/`** (repository name must match the path segment; GitHub sets `GITHUB_REPOSITORY` in Actions).
 
-**Live site looks wrong but localhost is fine:** GitHub Pages and browsers often **cache `site.json`** (same URL every deploy). The app now loads it with **`cache: no-store`** so new visits pick up fresh data. Still do a **hard refresh** (Ctrl+Shift+R) or wait a few minutes after deploy. Confirm **Actions** ran **deploy** on your default branch and open the site in a **private window**. In the workflow log, check **Verify site data in dist** for empty `footerNote` / `workHighlightsLede` lengths after your changes.
+**Live site looks wrong but localhost is fine:** GitHub Pages and browsers often cache generated JSON assets. The app loads `workflow.runtime.json` and selected site data with **`cache: no-store`**, but you may still need a **hard refresh** (Ctrl+Shift+R) or a short wait after deploy. Confirm **Actions** ran **deploy** on your default branch and open the site in a private window.
 
 **If you see the repo README instead of the portfolio:**
 
@@ -84,7 +92,7 @@ npm run build
 1. `npm run build` → **`portfolio/dist/`**.
 2. Upload **`dist/`** to the host; CI should run **`npm ci`**, sync, test, validate, and build.
 
-**`public/site.json`** and **`public/resume.pdf`** are gitignored; they must be produced by **`npm run sync`** during dev or build.
+Workflow-generated files in `public/` are gitignored and must be produced by **`npm run sync`** during dev or build.
 
 ## Structure
 
@@ -94,7 +102,7 @@ portfolio/
   vite.config.js
   package.json
   scripts/
-    sync-site.mjs    # resume.md + portfolio.md -> site.json; PDF copy
+    sync-site.mjs    # workflow-selected content -> profile site data + runtime metadata
   src/
     main.js
     styles/main.css
@@ -102,17 +110,17 @@ portfolio/
   dist/
 ```
 
-## `content/portfolio.md` frontmatter (optional)
+## `content/portfolios/portfolio_i.md` frontmatter (optional)
 
-If the file starts with a **`---` … `---`** YAML block, those keys become **`site.json.ui`** (hero tagline, section headings, PDF button label, document title suffix, footer). Omitted keys use built-in defaults in **`scripts/sync-site.mjs`**.
+If the selected portfolio content file starts with a **`---` … `---`** YAML block, those keys become `ui` fields in the generated profile site JSON. Omitted keys use built-in defaults plus selected template defaults in `scripts/sync-site.mjs`.
 
-- **`heroTagline`**: use **`{{firstName}}`**; replaced from the first word of the name in **`resume.md`** at sync.
+- **`heroTagline`**: use **`{{firstName}}`**; replaced from the first word of the selected resume content at sync.
 - **`workHighlightsLede`**: optional subtitle under Work highlights; omit or leave empty to hide.
 - **`footerNote`**: optional footer line; omit or leave empty to hide. If set, plain text with **backticks** for `<code>` (e.g. `` `npm run sync` ``).
 
-Without frontmatter, sync uses the same defaults and parses the whole file as Markdown (legacy).
+Without frontmatter, sync uses the same defaults and parses the whole file as Markdown.
 
-## `content/portfolio.md` sections
+## `content/portfolios/portfolio_i.md` sections
 
 After the closing `---` of frontmatter (or from the top of the file if no frontmatter), use `##` headings (case-insensitive mapping):
 
@@ -121,9 +129,9 @@ After the closing `---` of frontmatter (or from the top of the file if no frontm
 - **Impact at a glance** (or **Impact metrics**)
 - **Let's connect**
 
-Unknown `##` sections are stored in `site.json.portfolio` under a derived key.
+Unknown `##` sections are stored under `portfolio` in generated site JSON using a derived key.
 
-## `content/resume.md` Projects (stacked compact)
+## `content/resumes/resume_i.md` Projects (stacked compact)
 
 Under **`## Projects`**, you can list several entries without `###` between them: each entry starts with a full line
 

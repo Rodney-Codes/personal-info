@@ -13,6 +13,7 @@ from resume_pdf.config import (
     paths_from_config,
     validate_paths,
 )
+from tools.workflow_v2 import resolve_active_workflow, resolve_resume_build_overrides
 
 
 def _default_script_dir() -> Path:
@@ -72,7 +73,11 @@ def main(argv: list[str] | None = None, *, script_dir: Path | None = None) -> in
     args = parse_args(argv)
     base = script_dir if script_dir is not None else _default_script_dir()
     cfg, config_base_dir = load_build_configuration(args.config, script_dir=base)
-    paths = paths_from_config(cfg, config_base_dir, {})
+    workflow_overrides: dict[str, object] = {}
+    if args.config is None:
+        resolved = resolve_active_workflow()
+        workflow_overrides = resolve_resume_build_overrides(resolved)
+    paths = paths_from_config(cfg, config_base_dir, workflow_overrides)
     paths = apply_cli_to_paths(paths, args)
 
     errors = validate_paths(paths)

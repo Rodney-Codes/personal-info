@@ -1,5 +1,5 @@
 /**
- * Loads /site.json (from content/resume.md + content/portfolio.md).
+ * Loads workflow-selected site data JSON.
  */
 
 import { profileHandleFromUrl } from "./lib/profileHandleFromUrl.js";
@@ -57,13 +57,44 @@ function renderMarkdownBlock(text) {
 
 async function loadData() {
   const base = import.meta.env.BASE_URL || "/";
-  const url = `${base}site.json`;
-  // Avoid stale site.json after GitHub Pages deploys (same path; CDN/browser cache).
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Could not load site.json (${res.status}). Run: npm run sync`);
+  const runtimeUrl = `${base}workflow.runtime.json`;
+  const runtimeRes = await fetch(runtimeUrl, { cache: "no-store" });
+  if (!runtimeRes.ok) {
+    throw new Error(
+      `Could not load workflow.runtime.json (${runtimeRes.status}). Run: npm run sync`,
+    );
   }
-  return res.json();
+  const runtime = await runtimeRes.json();
+  const siteFile = runtime?.site_json_file;
+  const pdfFile = runtime?.resume_pdf_file;
+  if (
+    !siteFile ||
+    typeof siteFile !== "string" ||
+    !siteFile.trim() ||
+    !pdfFile ||
+    typeof pdfFile !== "string" ||
+    !pdfFile.trim()
+  ) {
+    throw new Error("workflow.runtime.json is missing required output filenames");
+  }
+  const siteUrl = `${base}${siteFile}`;
+  const res = await fetch(siteUrl, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Could not load ${siteFile} (${res.status}). Run: npm run sync`);
+  }
+  const data = await res.json();
+  const selected =
+    runtime.selected && typeof runtime.selected === "object"
+      ? runtime.selected
+      : null;
+  return {
+    data,
+    runtime: {
+      pdfFile,
+      profileId: runtime.profile_id,
+      selected,
+    },
+  };
 }
 
 function renderContact(c) {
@@ -175,7 +206,59 @@ function renderImpactStrip(text) {
   </ul>`;
 }
 
-function render(data) {
+function parseImpactCards(text) {
+  if (!text || !String(text).trim()) {
+    return [];
+  }
+  const lines = String(text)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith("- "))
+    .map((l) => l.slice(2).trim());
+  return lines.map((line) => {
+    const m = line.match(/^(\*\*[^*]+\*\*|[0-9]+(?:\.[0-9]+)?[%+A-Za-z]*)\s*(.*)$/);
+    if (!m) {
+      return { value: "", label: line };
+    }
+    return {
+      value: m[1].replace(/\*\*/g, "").trim(),
+      label: m[2] ? m[2].trim() : "Impact",
+    };
+  });
+}
+
+function renderProjectsFormat2(projects) {
+  const safeProjects = Array.isArray(projects) ? projects : [];
+  const categories = [
+    "All",
+    ...new Set(
+      safeProjects
+        .map((p) => (p?.company && String(p.company).trim() ? String(p.company).trim() : "General"))
+        .filter(Boolean),
+    ),
+  ];
+  const filters = `<div class="f2-filters">${categories
+    .map(
+      (c, idx) =>
+        `<button class="f2-filter-btn${idx === 0 ? " is-active" : ""}" data-filter="${esc(c)}">${esc(c)}</button>`,
+    )
+    .join("")}</div>`;
+  const cards = safeProjects
+    .map((project) => {
+      const cat = project?.company && String(project.company).trim() ? String(project.company).trim() : "General";
+      const tech = project?.location && String(project.location).trim() ? String(project.location).trim() : "";
+      const bullets = Array.isArray(project?.bullets) ? project.bullets : [];
+      return `<article class="f2-project-card f2-reveal" data-project-category="${esc(cat)}">
+        <p class="f2-project-meta">${esc(cat)}${tech ? ` • ${esc(tech)}` : ""}${project?.dates ? ` • ${esc(project.dates)}` : ""}</p>
+        <h3>${esc(project?.displayTitle || project?.title || "Project")}</h3>
+        <ul>${bullets.map((b) => `<li>${inlineBold(String(b))}</li>`).join("")}</ul>
+      </article>`;
+    })
+    .join("");
+  return `${filters}<div class="f2-project-grid">${cards}</div>`;
+}
+
+function renderFormat1(data, runtime) {
   const p = data.portfolio || {};
   const u = data.ui && typeof data.ui === "object" ? data.ui : {};
   const heroTagline =
@@ -184,7 +267,7 @@ function render(data) {
     "";
 
   const pdfBtn = data.pdfAvailable
-    ? `<a class="btn btn--ghost" href="${import.meta.env.BASE_URL}resume.pdf" download>${esc(u.pdfButton || "Download PDF resume")}</a>`
+    ? `<a class="btn btn--ghost" href="${import.meta.env.BASE_URL}${esc(runtime.pdfFile)}" onclick="this.download='rr_resume_'+Date.now()+'.pdf'">${esc(u.pdfButton || "Download PDF resume")}</a>`
     : "";
 
   return `
@@ -270,16 +353,136 @@ function render(data) {
   `;
 }
 
+function renderFormat2(data, runtime) {
+  const p = data.portfolio || {};
+  const u = data.ui && typeof data.ui === "object" ? data.ui : {};
+  const heroTagline =
+    (u.heroTagline && String(u.heroTagline).trim()) ||
+    (data.heroTagline && String(data.heroTagline).trim()) ||
+    "";
+  const impactCards = parseImpactCards(p.impactAtAGlance);
+  const pdfBtn = data.pdfAvailable
+    ? `<a class="f2-btn f2-btn--ghost" href="${import.meta.env.BASE_URL}${esc(runtime.pdfFile)}" onclick="this.download='rr_resume_'+Date.now()+'.pdf'">${esc(u.pdfButton || "Download PDF resume")}</a>`
+    : "";
+
+  const skillPills = (data.skills || [])
+    .map((s) => `<span class="f2-pill"><strong>${esc(s.label)}</strong> ${esc(s.value)}</span>`)
+    .join("");
+
+  return `
+    <main id="main" class="f2-main">
+      <section class="f2-hero f2-reveal">
+        <p class="f2-kicker">${esc(u.eyebrow || "Portfolio")}</p>
+        <h1>Hi, I'm <span>${esc(data.name.split(" ")[0] || data.name)}</span>.</h1>
+        <h2>${esc(heroTagline || "I build data systems that get results.")}</h2>
+        <p class="f2-summary">${esc(data.summary || "")}</p>
+        <div class="f2-actions">
+          ${pdfBtn}
+          ${data.contact?.email?.href ? `<a class="f2-btn" href="${esc(data.contact.email.href)}">Schedule a Call</a>` : ""}
+          ${data.contact?.linkedin?.href ? `<a class="f2-btn f2-btn--ghost" target="_blank" rel="noopener noreferrer" href="${esc(data.contact.linkedin.href)}">View Profile</a>` : ""}
+        </div>
+      </section>
+
+      ${
+        impactCards.length
+          ? `<section class="f2-section">
+        <h2>${esc(u.impactAtAGlanceHeading || "Results that matter")}</h2>
+        <div class="f2-metric-grid">
+          ${impactCards
+            .map(
+              (m) => `<article class="f2-metric-card f2-reveal">
+              <p class="f2-metric-value">${esc(m.value || "Impact")}</p>
+              <p class="f2-metric-label">${inlineBold(m.label || "")}</p>
+            </article>`,
+            )
+            .join("")}
+        </div>
+      </section>`
+          : ""
+      }
+
+      <section class="f2-section f2-reveal">
+        <h2>${esc(u.toolsAndStackHeading || "Core Competencies")}</h2>
+        <div class="f2-pill-wrap">${skillPills}</div>
+      </section>
+
+      <section class="f2-section">
+        <h2>${esc(u.workHighlightsHeading || "Professional Journey")}</h2>
+        <div class="f2-timeline">
+          ${renderExperience(data.experience || [])
+            .replaceAll('class="experience-card experience-card--story"', 'class="experience-card experience-card--story f2-timeline-card f2-reveal"')}
+        </div>
+      </section>
+
+      ${
+        data.projects && data.projects.length
+          ? `<section class="f2-section">
+          <h2>${esc(u.projectsHeading || "Featured Projects")}</h2>
+          ${renderProjectsFormat2(data.projects)}
+        </section>`
+          : ""
+      }
+    </main>
+  `;
+}
+
+function activateFormat2Interactions() {
+  const filterButtons = Array.from(document.querySelectorAll(".f2-filter-btn"));
+  const cards = Array.from(document.querySelectorAll(".f2-project-card"));
+  for (const btn of filterButtons) {
+    btn.addEventListener("click", () => {
+      for (const b of filterButtons) {
+        b.classList.remove("is-active");
+      }
+      btn.classList.add("is-active");
+      const selected = btn.getAttribute("data-filter") || "All";
+      for (const card of cards) {
+        const category = card.getAttribute("data-project-category") || "";
+        const show = selected === "All" || category === selected;
+        card.style.display = show ? "" : "none";
+      }
+    });
+  }
+
+  const revealEls = Array.from(document.querySelectorAll(".f2-reveal"));
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      }
+    },
+    { threshold: 0.1 },
+  );
+  for (const el of revealEls) {
+    observer.observe(el);
+  }
+}
+
 async function main() {
   const app = document.getElementById("app");
   try {
-    const data = await loadData();
+    const { data, runtime } = await loadData();
     document.title = data.meta?.title || data.name || "Portfolio";
     const meta = document.querySelector('meta[name="description"]');
     if (meta && data.meta?.description) {
       meta.setAttribute("content", data.meta.description);
     }
-    app.innerHTML = render(data);
+    const variant = String(data?.ui?.templateVariant || "format1").toLowerCase();
+    document.body.setAttribute("data-template", variant);
+    if (variant === "format2") {
+      const [{ default: React }, { createRoot }, { default: UpstreamApp }] = await Promise.all([
+        import("react"),
+        import("react-dom/client"),
+        import("./format2/upstream/App.tsx"),
+      ]);
+      const root = createRoot(app);
+      root.render(React.createElement(UpstreamApp, { data, runtime }));
+      return;
+    }
+    app.innerHTML = renderFormat1(data, runtime);
   } catch (e) {
     app.innerHTML = `
       <main class="site-header" style="background:#450a0a;color:#fecaca;">

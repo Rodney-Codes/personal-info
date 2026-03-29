@@ -19,7 +19,7 @@ from resume_pdf.cli import main as resume_pdf_main
 @command(
     "resume",
     "build",
-    description="Build PDF from content/resume.md into artifacts/resume.pdf (resume_pdf pipeline).",
+    description="Build workflow-selected resume PDF into artifacts/<outputs.resume_pdf>.",
 )
 def resume_build(argv: list[str]) -> int:
     return resume_pdf_main(argv, script_dir=_RESUME_PDF_DIR)

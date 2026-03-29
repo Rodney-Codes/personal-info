@@ -1,8 +1,14 @@
 # Content
 
-**Canonical source data** for this repository. PDF and portfolio builds read from here.
+Versioned source data for this repository. PDF and portfolio builds read from here via `config/workflow.active.json`.
 
-| File | Purpose |
+| Path pattern | Purpose |
 |------|---------|
-| `resume.md` | Formal resume: `@edu` / `@tech`, contact line (pipe-separated; optional `[Portfolio](url)`). **Experience / Projects**: split on `###` between roles. Within each chunk: **classic** = title line + `**Org** \| Location \| Dates` + `-` bullets; **compact** = `**Name** \| Subtitle \| Year` + bullets. **Stacked compact** (e.g. several projects): repeat `**Name** \| … \| Year` blocks with blank lines between; no `###` required between them. Used by **`resume_pdf/`** and **`portfolio/`** sync. |
-| `portfolio.md` | **Site-only** copy and **UI strings** (optional YAML frontmatter): narrative `##` sections plus labels, hero tagline, footer. Resume stays the source of truth for roles and metrics. |
+| `resumes/resume_i.md` | Formal resume content (`i` is integer version). Supports `@edu` / `@tech`, contact line, and experience/project conventions used by PDF and portfolio sync. |
+| `portfolios/portfolio_i.md` | Site-only narrative and optional YAML UI frontmatter (`i` is integer version). |
+
+The active IDs are selected in `config/workflow.active.json`:
+
+- `resume_content_id` / `portfolio_content_id` → which markdown files sync reads
+- `resume_format_id` → resume PDF HTML/CSS template manifest (`templates/resume_formats/`), used by `python -m tools resume build`
+- `portfolio_format_id` → site UI defaults and `templateVariant` (`templates/portfolio_formats/`)

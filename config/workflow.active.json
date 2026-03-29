@@ -1,0 +1,12 @@
+{
+  "profile_id": "main_release",
+  "resume_content_id": "resume_1",
+  "portfolio_content_id": "portfolio_2",
+  "resume_format_id": "resume_format_1",
+  "portfolio_format_id": "template_format_2",
+  "outputs": {
+    "site_json": "site.main_release.json",
+    "resume_pdf": "resume.main_release.pdf",
+    "build_manifest": "build.main_release.json"
+  }
+}

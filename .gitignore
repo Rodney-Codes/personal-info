@@ -29,8 +29,10 @@ Thumbs.db
 node_modules/
 
 # Portfolio: generated (see portfolio/scripts/sync-site.mjs)
-portfolio/public/site.json
-portfolio/public/resume.pdf
+portfolio/public/workflow.runtime.json
+portfolio/public/site.*.json
+portfolio/public/resume.*.pdf
+portfolio/public/local-assets/
 
 # Resume PDF build output (see resume_pdf/, tools resume build)
 artifacts/*
