@@ -96,10 +96,11 @@ From repo root:
 
 The repository publishes a personal **resume PDF** and a **portfolio website** using a workflow-selected profile:
 
-- `config/workflow.active.json` selects content/template IDs.
-- resume content is read from `content/resumes/<resume_content_id>.md`.
-- portfolio narrative is read from `content/portfolios/<portfolio_content_id>.md`.
-- format manifests are read from `templates/resume_formats/<resume_format_id>.json` and `templates/portfolio_formats/<portfolio_format_id>.json`.
+- **`config/workflow.active.json` is the single switch file** for the active combination. After adding new `content/*` or `templates/*` files, point the four `*_id` fields (and optionally `outputs.*`) at them; then `workflow validate-config`, `resume build`, and `portfolio sync`. Human checklist: **`config/README.md`**.
+- Resume content: `content/resumes/<resume_content_id>.md`.
+- Portfolio narrative: `content/portfolios/<portfolio_content_id>.md`.
+- Resume PDF presentation: `templates/resume_formats/<resume_format_id>.json` (paths into `resume_pdf/` assets).
+- Site template defaults: `templates/portfolio_formats/<portfolio_format_id>.json` (includes `templateVariant`, e.g. `format2` for the React app).
 
 From these sources, the repo generates:
 
@@ -110,31 +111,12 @@ From these sources, the repo generates:
 
 The intent is composable profile-driven publishing for resume + portfolio variants, with CI verification for the selected active profile.
 
-### 1.1 Switching the active resume / portfolio / template combination
-
-After you add new content files and (if needed) new template manifests, you normally **only change one config file** to point the whole pipeline at the new combination:
-
-- **Source of truth:** `config/workflow.active.json`
-- Set:
-  - `resume_content_id` → `content/resumes/<id>.md`
-  - `portfolio_content_id` → `content/portfolios/<id>.md`
-  - `resume_format_id` → `templates/resume_formats/<id>.json` (PDF HTML/CSS paths + row templates)
-  - `portfolio_format_id` → `templates/portfolio_formats/<id>.json` (site UI defaults such as `templateVariant`, button labels)
-  - `outputs.site_json`, `outputs.resume_pdf`, `outputs.build_manifest` when you want a distinct artifact basename (e.g. another release profile)
-
-Then regenerate artifacts:
-
-1. `python -m tools resume build` (writes `artifacts/<outputs.resume_pdf>` using the active resume content + resume format manifest)
-2. `npm run sync` from `portfolio/` (or `python -m tools portfolio sync`) to emit `public/<outputs.site_json>`, copy the PDF into `public/` when present, and write `workflow.runtime.json`
-
-No code changes are required purely to swap combinations, as long as the new files exist at the paths implied by the IDs.
-
 ## 2. Key directories (mental model)
 
 Repository root:
 
 - `config/`
-  - Active workflow profile selector (`workflow.active.json`).
+  - **`workflow.active.json`**: only file required to change the active resume/portfolio/template combination (see **`config/README.md`**).
 - `content/`
   - Versioned source content (`resumes/`, `portfolios/`).
 - `templates/`
@@ -147,7 +129,6 @@ Repository root:
   - Vite (Node) static site.
   - `npm run sync` generates profile-selected site/pdf assets and `public/workflow.runtime.json`.
   - Browser UI reads runtime metadata and then fetches the selected site JSON.
-  - **Format 2 (React):** when selected portfolio format supplies `ui_defaults.templateVariant` of `format2`, `src/main.js` mounts `src/format2/upstream/App.tsx` with `{ data, runtime }`. Legacy **format1** remains string-template rendering in `main.js`.
 - `tools/`
   - Python “central CLI” that registers commands and forwards to `resume_pdf/` and `portfolio/`.
 - `__root__/`
@@ -344,7 +325,7 @@ High-level flow (`portfolio/scripts/sync-site.mjs`):
      - copy it to `portfolio/public/<outputs.resume_pdf>`
 8. Write runtime selector:
    - `portfolio/public/workflow.runtime.json`
-   - includes `selected`: `{ resume_content_id, portfolio_content_id, resume_format_id, portfolio_format_id }` for debugging and UI tooltips
+   - includes `selected`: `{ resume_content_id, portfolio_content_id, resume_format_id, portfolio_format_id }` for traceability (and optional UI tooltips)
 
 Contact line parsing details (`parseContactLine(line)`):
 
@@ -361,84 +342,52 @@ Contact line parsing details (`parseContactLine(line)`):
 
 ### 4.3 Front-end rendering (`portfolio/src/`)
 
-The browser loads `public/workflow.runtime.json` in `portfolio/src/main.js`:
+Entry: **`portfolio/src/main.js`**.
 
-- It determines base path from `import.meta.env.BASE_URL`
-- Fetches runtime metadata with `cache: "no-store"`, then fetches selected site JSON with `cache: "no-store"`
-- **Template selection:** `String(data?.ui?.templateVariant || "format1").toLowerCase() === "format2"` selects the React app (`format2/upstream/App.tsx`); otherwise the **legacy** string-template HTML path runs (format1).
+- Loads **`public/workflow.runtime.json`** (`cache: "no-store"`), then the site file named by **`site_json_file`**.
+- Passes `{ data, runtime }` into the renderer where `runtime` includes at least **`pdfFile`** (from `resume_pdf_file` in JSON) and optional **`selected`** (workflow IDs).
 
-**Legacy format1 (`main.js` string templates):**
+**`templateVariant`** (from generated `data.ui.templateVariant`, driven by the active portfolio format manifest):
 
-- header (name, eyebrow, hero tagline)
-- PDF download when `data.pdfAvailable === true` (suggested save-as name on click: `rr_resume_<timestamp>.pdf` via inline `onclick` / handler)
-- experience, projects, education, skills, optional `data.portfolio.*`, footer note with backticks as `<code>`
+- **`format2`**: dynamically imports **`./format2/upstream/App.tsx`** (React) and mounts it with `{ data, runtime }`. Hero CTAs include mailto, LinkedIn, and a resume download when `data.pdfAvailable` is true. The download anchor sets `download` to **`rr_resume_<Date.now()>.pdf`** on click (suggested filename only; href still points at `public/<outputs.resume_pdf>`).
+- **Other `templateVariant` values**: HTML string templates in `main.js` (default `format1`). PDF link uses the same suggested filename pattern via inline `onclick`.
 
-Helpers include `renderMarkdownBlock`, `renderImpactStrip`, etc.
+Shared helpers on the string-template path:
 
-**Format2 (React):**
+- `renderMarkdownBlock`, `renderImpactStrip`, etc.
+- **`portfolio/src/lib/profileHandleFromUrl.js`**: URL to display handle; covered by **`portfolio/src/lib/profileHandleFromUrl.test.js`** (Vitest).
 
-- `App.tsx` consumes the same `data` and `runtime` objects (`runtime.pdfFile`, `runtime.selected`, …).
-- Hero actions: mailto (schedule), LinkedIn, resume PDF link with `download` filename set on click to `rr_resume_${Date.now()}.pdf`.
-- Project cards use `data.projects` and optional `images`; when `images` is empty, sync-time defaults apply stock placeholder URLs.
+## 5. Data contracts: runtime JSON vs selected site JSON
 
-Profile handle helper (`portfolio/src/lib/profileHandleFromUrl.js`):
+### 5.1 `portfolio/public/workflow.runtime.json` (generated)
 
-- Given a URL, strips `?query` / `#hash` and trailing slashes
-- Returns the last path segment (used for LinkedIn/GitHub display text)
+Produced by **`portfolio/scripts/sync-site.mjs`**. Consumed by **`main.js`** and **`validate-site-json.mjs`** (to find the site file).
 
-Test:
+| Field | Type | Purpose |
+|-------|------|---------|
+| `profile_id` | string | Profile label from workflow config |
+| `site_json_file` | string | Basename of generated site JSON under `public/` |
+| `resume_pdf_file` | string | Basename of PDF under `public/` (copy of artifact when present) |
+| `generated_at_utc` | string | ISO timestamp |
+| `selected` | object | Echo of `resume_content_id`, `portfolio_content_id`, `resume_format_id`, `portfolio_format_id` |
 
-- `portfolio/src/lib/profileHandleFromUrl.test.js` uses Vitest.
+The in-memory object passed to React uses **`pdfFile`** (not `resume_pdf_file`); **`main.js`** maps this when calling `loadData()`.
 
-## 5. Data contracts: `portfolio/public/workflow.runtime.json` + selected site JSON
+### 5.2 Selected site JSON (`portfolio/public/<outputs.site_json>`)
 
-Runtime selector (`workflow.runtime.json`) is generated by `portfolio/scripts/sync-site.mjs` and consumed by both the frontend and `portfolio/scripts/validate-site-json.mjs` to locate the selected site JSON file.
+| Field | Notes |
+|-------|--------|
+| `meta` | `title`, `description` |
+| `name` | From resume `#` line |
+| `ui` | Merged defaults + portfolio format + frontmatter; includes `templateVariant`, `heroTagline`, `pdfButton`, etc. |
+| `contact` | `phone`, `email`, `linkedin`, `github`, `portfolio` (shaped objects where applicable) |
+| `summary` | Professional summary text |
+| `portfolio` | Narrative sections from portfolio markdown |
+| `experience`, `projects` | Parsed from resume |
+| `education`, `skills` | Parsed from resume |
+| `pdfAvailable` | `true` if `artifacts/<outputs.resume_pdf>` existed at sync time |
 
-Expected **runtime** top-level fields (generator):
-
-- `profile_id` (string)
-- `site_json_file` (string basename)
-- `resume_pdf_file` (string basename)
-- `generated_at_utc` (ISO string)
-- `selected` (object): `resume_content_id`, `portfolio_content_id`, `resume_format_id`, `portfolio_format_id`
-
-`main.js` maps this to the object passed into React: `{ pdfFile: runtime.resume_pdf_file, profileId, selected }`.
-
-Expected **site JSON** top-level fields (based on generator + renderer):
-
-- `meta`
-  - `title` (string)
-  - `description` (string)
-- `name` (string)
-- `ui` (object)
-  - includes UI strings such as `heroTagline`, `metaTitleSuffix`, `aboutMeHeading`, etc.
-  - `templateVariant`: `"format1"` (default string templates in `main.js`) or `"format2"` (React app)
-- `contact`
-  - `phone` (string)
-  - `email` = `{ text: string, href: string }`
-  - `linkedin` = `{ text: string, href: string }`
-  - `github` = `{ text: string, href: string }`
-  - `portfolio` = `{ text: string, href: string }`
-- `summary` (string)
-- `portfolio` (object)
-  - keys depend on selected `content/portfolios/<portfolio_content_id>.md` headings, e.g. `aboutMe`, `letsConnect`, etc.
-- `experience` (array)
-  - items: `{ title, company, location, dates, bullets, displayTitle }`
-- `projects` (array)
-  - items: same structure as experience items
-- `education` (array)
-  - items: `{ school, detail, year }`
-- `skills` (array)
-  - items: `{ label, value }`
-- `pdfAvailable` (boolean)
-
-Light validation:
-
-- `validate-site-json.mjs` checks:
-  - `name` non-empty string
-  - `ui` exists and `ui.heroTagline` non-empty
-  - `experience` is an array
-  - `contact` and `meta.title` exist with expected types
+**Light validation** (`validate-site-json.mjs`): non-empty `name`, `ui.heroTagline`, array `experience`, object `contact`, `meta.title`. It reads **`workflow.runtime.json`** only to locate the site file.
 
 ## 6. Running the repo locally (runbook)
 
@@ -555,11 +504,9 @@ Treat `portfolio/scripts/sync-site.mjs` as the contract author:
 
 ## 8. Quick “where to look” index
 
-- Active profile (switch combinations here):
-  - `config/workflow.active.json`
+- **Switch active resume/portfolio/template:** `config/workflow.active.json` + **`config/README.md`**
 - Repo entrypoint CLI:
   - `tools/__main__.py`, `tools/cli.py`, `tools/registry.py`
-  - `tools/workflow_v2.py`, `tools/commands/workflow.py`
 - Resume PDF builder:
   - `resume_pdf/build.py`
   - `resume_pdf/src/resume_pdf/build_service.py`
@@ -571,16 +518,17 @@ Treat `portfolio/scripts/sync-site.mjs` as the contract author:
 - Portfolio smoke validation:
   - `portfolio/scripts/validate-site-json.mjs`
 - Portfolio Vite app:
-  - `portfolio/src/main.js` (loader + format1 HTML)
-  - `portfolio/src/format2/upstream/App.tsx` (format2 React UI)
-  - `portfolio/src/styles/main.css`, `portfolio/src/styles/format2-upstream.css`
+  - `portfolio/src/main.js` (loader + string-template formats)
+  - `portfolio/src/format2/upstream/App.tsx` (React UI when `templateVariant` is `format2`)
+  - `portfolio/src/styles/main.css`
 
 ## 9. Known gotchas (operational risks)
 
-1. `portfolio/public/workflow.runtime.json` and profile-selected site JSON are generated; if you edit selected content/template files, you must run `npm run sync` (or `python -m tools portfolio sync`).
-2. GitHub Pages deploy caching can make the site appear “stuck”; the front-end fetches runtime metadata and selected site JSON with `cache: "no-store"`, but browsers/CDNs can still cache other assets.
-3. Resume PDF generation depends on Python packages:
+1. **Profile selection is not edited in `portfolio/public/`.** Change **`config/workflow.active.json`**, then validate, resume build (for PDF), and sync. See **`config/README.md`**.
+2. `portfolio/public/workflow.runtime.json` and profile-selected site JSON are generated; if you edit selected content/template files, you must run `npm run sync` (or `python -m tools portfolio sync`).
+3. GitHub Pages deploy caching can make the site appear “stuck”; the front-end fetches runtime metadata and selected site JSON with `cache: "no-store"`, but browsers/CDNs can still cache other assets.
+4. Resume PDF generation depends on Python packages:
    - `markdown`, `xhtml2pdf`, `pypdf` (see `requirements.txt`)
-4. xhtml2pdf is sensitive to HTML structure and CSS:
+5. xhtml2pdf is sensitive to HTML structure and CSS:
    - preprocessors exist to transform structured lines into stable HTML row/table markup.
 

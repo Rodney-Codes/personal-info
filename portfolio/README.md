@@ -8,10 +8,7 @@ Vite static site driven by **`config/workflow.active.json`** selections:
 
 ## Design
 
-- **Format 1** (`ui.templateVariant` omitted or not `format2`): string-template site rendered from `src/main.js` (hero, narrative sections from selected portfolio markdown, metrics, work highlights from resume, education/skills, connect band).
-- **Format 2** (`ui.templateVariant: "format2"` from the selected `templates/portfolio_formats/*.json`): React UI in `src/format2/upstream/App.tsx`, driven by the same generated site JSON + `workflow.runtime.json`.
-
-Static assets (e.g. tech logos under `public/*.png`) are served with the app; profile photos can live in `public/local-assets/` (gitignored) for local builds.
+The active **`templates/portfolio_formats/<portfolio_format_id>.json`** sets `templateVariant` and UI defaults. **`templateVariant: format2`** loads the React app in **`src/format2/upstream/`** (data from generated site JSON). Other variants use the string-template renderer in **`src/main.js`**. Resume-backed sections (experience, projects, skills, etc.) always come from the workflow-selected resume markdown at sync time.
 
 ## Prerequisites
 
@@ -50,6 +47,10 @@ npm run dev
 ```
 
 Open the URL Vite prints (usually `http://localhost:5173`).
+
+## Resume download (browser)
+
+The hero PDF link serves `public/<outputs.resume_pdf>` from the active workflow. The suggested save-as name is **`rr_resume_<timestamp>.pdf`** (`Date.now()` at click). Rebuilding that file requires **`python -m tools resume build`** and **`npm run sync`** (or **`prebuild`**) so `pdfAvailable` stays accurate.
 
 ## Tests
 
@@ -102,11 +103,13 @@ portfolio/
   vite.config.js
   package.json
   scripts/
-    sync-site.mjs    # workflow-selected content -> profile site data + runtime metadata
+    sync-site.mjs       # reads config/workflow.active.json -> public site JSON + workflow.runtime.json + PDF copy
+    validate-site-json.mjs
   src/
-    main.js
-    styles/main.css
-  public/
+    main.js             # loads runtime + site JSON; string-template UI when templateVariant is not format2; React App when format2
+    format2/upstream/   # React portfolio (template_format_* with templateVariant format2)
+    styles/
+  public/               # generated assets (sync); not the source of profile selection
   dist/
 ```
 

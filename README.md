@@ -30,28 +30,22 @@ python -m tools workflow validate-config
 
 Add new commands by creating a module under **`tools/commands/`** and registering with **`@command(...)`** (see **`tools/commands/resume.py`**), then import that module from **`tools/commands/__init__.py`**.
 
-## Workflow v2 scaffolding
+## Workflow (single config drives everything)
 
-This repository now includes a v2 workflow foundation for versioned content and templates:
+**To switch resume content, portfolio content, resume PDF layout, or site template:** edit **`config/workflow.active.json`** only (after the new `.md` / template manifest files exist). See **`config/README.md`** for the field map and post-change checklist.
 
-- active profile: `config/workflow.active.json`
-- versioned content directories:
-  - `content/resumes/`
-  - `content/portfolios/`
-- template manifests:
-  - `templates/resume_formats/`
-  - `templates/portfolio_formats/`
-- architecture notes: `docs/workflow-v2.md`
+Supporting layout:
 
-Run `python -m tools workflow validate-config` to resolve the active profile and verify all referenced files exist.
+- **`config/workflow.active.json`** – active profile IDs and output filenames
+- **`content/resumes/`**, **`content/portfolios/`** – versioned markdown
+- **`templates/resume_formats/`**, **`templates/portfolio_formats/`** – JSON manifests
+- Contract: **`docs/workflow.md`**
 
-### Switching resume, portfolio, or template design
+Validate after any config edit:
 
-1. Add or edit files under `content/resumes/`, `content/portfolios/`, and/or `templates/resume_formats/`, `templates/portfolio_formats/` as needed.
-2. Update **only** `config/workflow.active.json` so `resume_content_id`, `portfolio_content_id`, `resume_format_id`, and `portfolio_format_id` point at those IDs (and adjust `outputs.*` if you want separate artifact basenames).
-3. Rebuild: `python -m tools resume build`, then `npm run sync` inside `portfolio/` (or `python -m tools portfolio sync` from the repo root), then `npm run build` for a production bundle.
-
-No application code changes are required for a pure combination swap.
+```bash
+python -m tools workflow validate-config
+```
 
 ## Python venv
 
@@ -75,11 +69,17 @@ Details: **`resume_pdf/README.md`**.
 
 ## Portfolio (localhost / deploy)
 
-See **`portfolio/README.md`**: **`npm run dev`** in **`portfolio/`** or **`python -m tools portfolio dev`** from the repo root.
+See **`portfolio/README.md`**. Local dev: **`cd portfolio`**, **`npm install`**, **`npm run dev`** (opens Vite, usually **http://localhost:5173**; `predev` runs **`npm run sync`**). From repo root: **`python -m tools portfolio dev`**.
 
-**GitHub Pages:** enable **Pages → GitHub Actions** in repo settings; pushes to your **default branch** (`main` or `master`) run **`.github/workflows/portfolio.yml`** (sync, test, validate, build, deploy).
+**GitHub Pages:** enable **Pages → GitHub Actions** in repo settings; pushes to the default branch run **`.github/workflows/portfolio.yml`** (sync, test, validate, build, deploy). This document does not trigger deploy by itself.
 
-**Resume PDF on Pages:** CI runs Node `sync` only. The download button is shown when `artifacts/<outputs.resume_pdf>` exists at sync time; that file is normally produced locally with `python -m tools resume build` (Python is not installed in the current Portfolio workflow). Committing generated PDFs under `portfolio/public/` is discouraged (those paths are gitignored). To ship a PDF from CI, extend the workflow with a job that builds the PDF and runs sync afterward.
+**AI-oriented repo map:** **`AI_REPO_CONTEXT.md`** (pipelines, contracts, gotchas).
+
+## Engineering conventions
+
+- **Single source of truth for the active bundle:** `config/workflow.active.json` (documented in **`config/README.md`**).
+- **Generated assets:** `portfolio/public/site.*.json`, `workflow.runtime.json`, and copied PDFs are gitignored; produce them with **`npm run sync`** (or **`predev`** / **`prebuild`**).
+- **Before relying on a new combination:** `python -m tools workflow validate-config`, then resume build if you need the PDF, then sync.
 
 ## License
 

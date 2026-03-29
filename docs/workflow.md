@@ -1,10 +1,8 @@
-# Workflow V2 (Versioned Content + Template Composition)
+# Workflow (versioned content + template composition)
 
 ## Goal
 
-Move from a single-source resume/portfolio flow to a composable pipeline:
-
-**Switching combinations:** after new `.md` or template JSON files exist in the right folders, update **`config/workflow.active.json`** only (IDs + optional `outputs` names), then run resume build and portfolio sync. No separate “registry” file is required beyond that config.
+Composable publishing pipeline:
 
 - choose one resume content version
 - choose one portfolio content version
@@ -12,7 +10,9 @@ Move from a single-source resume/portfolio flow to a composable pipeline:
 - choose one portfolio format template
 - build a resolved release profile with explicit artifact names
 
-## Directory Contract
+All of this is driven by **`config/workflow.active.json`**. See **`config/README.md`** for the operational checklist.
+
+## Directory contract
 
 ```text
 config/
@@ -31,7 +31,7 @@ templates/
     template_format_i.json
 ```
 
-## Active Profile Contract
+## Active profile contract
 
 File: `config/workflow.active.json`
 
@@ -63,7 +63,7 @@ Rules:
   - `portfolio_format_id` -> `templates/portfolio_formats/<id>.json`
 - `outputs.*` values are file names only (no nested paths).
 
-## Template Manifest Shape (V2)
+## Template manifest shape
 
 Resume template manifest (`templates/resume_formats/<id>.json`):
 
@@ -104,35 +104,34 @@ Portfolio template manifest (`templates/portfolio_formats/<id>.json`):
 }
 ```
 
-## Build Manifest (Required Output)
+## Build manifest (required output)
 
-Each run should emit `artifacts/<outputs.build_manifest>` with:
+Each run emits `artifacts/<outputs.build_manifest>` with:
 
 - selected IDs
 - resolved source/template file paths
 - generated artifact paths
 - UTC timestamp
 
-This improves traceability and debugging when a wrong combination is deployed.
+This supports traceability when verifying which combination was built.
 
-## Implementation Phases
+## Implemented in this repository
 
-1. Contract + validator:
-   - add active profile config
-   - add content/template directories
-   - add `python -m tools workflow validate-config`
-2. Resume pipeline integration:
-   - make resume build read active profile instead of static `build_config.json`
-3. Portfolio sync integration:
-   - make sync read active profile and write profile-selected site JSON + runtime selector
-4. Deployment integration:
-   - deploy selected profile output only
-5. Optional matrix:
-   - pre-release verification for multiple profile IDs
+- Active profile config and validator: `python -m tools workflow validate-config`
+- Resume PDF build resolves content and templates from the active profile (`python -m tools resume build`)
+- Portfolio sync writes profile-selected site JSON, runtime metadata, and PDF copy (`npm run sync` in `portfolio/`)
+- CI builds and validates the selected site output (see `.github/workflows/portfolio.yml`)
 
-## Non-Goals for First Cut
+## Out of scope
 
-- supporting arbitrary unmanaged file layouts
-- supporting every historical markdown convention
+- arbitrary unmanaged file layouts
+- every historical markdown convention
 - runtime template auto-discovery
 
+## Operations: switching the active combination
+
+1. Add or reuse content under **`content/resumes/`** and **`content/portfolios/`** and manifests under **`templates/resume_formats/`** and **`templates/portfolio_formats/`** using stable IDs (e.g. `resume_2`, `portfolio_3`, `resume_format_2`, `template_format_2`).
+2. Edit **`config/workflow.active.json`** so `resume_content_id`, `portfolio_content_id`, `resume_format_id`, and `portfolio_format_id` match those IDs. Adjust **`outputs.*`** if you want distinct artifact names per profile.
+3. Run **`python -m tools workflow validate-config`**, then **`python -m tools resume build`**, then **`cd portfolio && npm run sync`** (or rely on **`predev`** / **`prebuild`** for sync when developing).
+
+The browser does not rebuild the PDF; it downloads the file produced by the resume build and copied during sync. See **`config/README.md`** for the full checklist.

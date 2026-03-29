@@ -64,7 +64,7 @@ For arbitrary Markdown, disable resume-specific preprocessors with the `--no-*` 
 
 See keys in **`build_config.json`**. Defaults in code mirror that file if JSON is missing.
 
-- `input_md` / `output_pdf` defaults still exist in `build_config.json`, but `python -m tools resume build` resolves the active profile from **`config/workflow.active.json`**: it uses `resume_content_id`, `resume_format_id` (manifest under `templates/resume_formats/`), and `outputs.resume_pdf`, unless you pass explicit CLI overrides (`--input`, `--output`, etc.).
+- **`python -m tools resume build`** resolves **`content/resumes/<resume_content_id>.md`**, template paths, and **`artifacts/<outputs.resume_pdf>`** from **`config/workflow.active.json`** and **`templates/resume_formats/<resume_format_id>.json`**, unless you pass explicit CLI overrides. Switching resume or PDF template = change that config (and add files), then validate and rebuild. See **`config/README.md`**.
 
 ## Markdown conventions (resume)
 

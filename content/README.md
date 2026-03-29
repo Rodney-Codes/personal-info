@@ -1,14 +1,8 @@
 # Content
 
-Versioned source data for this repository. PDF and portfolio builds read from here via `config/workflow.active.json`.
+Versioned source markdown. Which files are used is determined only by **`config/workflow.active.json`** (`resume_content_id`, `portfolio_content_id`). Resume PDF layout and site chrome come from **`templates/`** via the same config (`resume_format_id`, `portfolio_format_id`). See **`config/README.md`**.
 
 | Path pattern | Purpose |
-|------|---------|
-| `resumes/resume_i.md` | Formal resume content (`i` is integer version). Supports `@edu` / `@tech`, contact line, and experience/project conventions used by PDF and portfolio sync. |
-| `portfolios/portfolio_i.md` | Site-only narrative and optional YAML UI frontmatter (`i` is integer version). |
-
-The active IDs are selected in `config/workflow.active.json`:
-
-- `resume_content_id` / `portfolio_content_id` → which markdown files sync reads
-- `resume_format_id` → resume PDF HTML/CSS template manifest (`templates/resume_formats/`), used by `python -m tools resume build`
-- `portfolio_format_id` → site UI defaults and `templateVariant` (`templates/portfolio_formats/`)
+|--------------|---------|
+| `resumes/resume_i.md` | Resume facts: contact line, sections, `@edu` / `@tech`, experience/project conventions for PDF + portfolio sync. |
+| `portfolios/portfolio_i.md` | Site narrative, optional YAML frontmatter for UI strings; `##` sections mapped in sync. |

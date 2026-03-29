@@ -1,4 +1,4 @@
-"""Workflow v2 commands (versioned content + templates)."""
+"""Workflow commands: validate active profile and resolve content/template paths."""
 
 from __future__ import annotations
 

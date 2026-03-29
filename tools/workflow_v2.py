@@ -1,4 +1,4 @@
-"""Workflow V2 config resolution and validation utilities."""
+"""Resolve and validate config/workflow.active.json (active profile)."""
 
 from __future__ import annotations
 
