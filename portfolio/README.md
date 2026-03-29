@@ -23,7 +23,7 @@ The active **`templates/portfolio_formats/<portfolio_format_id>.json`** sets `te
 Resolution order (see **`scripts/sync-site.mjs`**):
 
 1. **`profilePhotoUrl`** in portfolio **frontmatter** (or non-empty **`ui_defaults`** in the portfolio format manifest) — full `https://` URL or a path under **`portfolio/public/`** (e.g. `headshot.jpg`).
-2. Else, if the resume contact line has a **GitHub** link, sync sets **`profilePhotoUrl`** to **`https://github.com/{username}.png`**, which redirects to your **GitHub profile avatar** (works on GitHub Pages with no extra files).
+2. Else, if the resume contact line has a **GitHub** link, sync calls the **GitHub API** for **`avatar_url`** and stores it with a one-time **`cb=`** query so each deploy fetches your **current** profile picture (avoids stale CDN/browser cache after you change the avatar on GitHub). If the API is unavailable, sync falls back to **`https://github.com/{username}.png`**.
 3. Else the app falls back to **`local-assets/profile.png`** (gitignored, local-only) and then the **`onError`** stock image if that file is missing.
 
 So production stays wrong only if there is **no** frontmatter URL/path, **no** GitHub link on the resume, and **no** committed image under **`public/`**.
