@@ -31,6 +31,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # xhtml2pdf/reportlab/svg stack can pull pycairo; building pycairo needs libcairo headers on the runner.
+      - name: Install OS packages for PDF (cairo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2-dev pkg-config
+
       - name: Build resume PDF (workflow-selected)
         run: |
           python -m pip install --upgrade pip

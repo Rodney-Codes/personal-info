@@ -24,6 +24,14 @@ From repo root (venv activated):
 pip install -r requirements.txt
 ```
 
+On **Linux**, if `pip` tries to **build `pycairo`** from source (common with the `xhtml2pdf` dependency chain), install Cairo headers first, for example:
+
+```bash
+sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
+```
+
+GitHub Actions runs the same `apt-get` step in **`.github/workflows/portfolio.yml`** before `pip install`.
+
 | Package | Purpose |
 |---------|---------|
 | markdown | MD to HTML |
