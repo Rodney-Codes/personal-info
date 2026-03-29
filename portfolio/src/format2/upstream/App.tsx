@@ -313,6 +313,26 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const resumeSkillsSnippet = resumeSkillTokens.slice(0, 8).join(", ");
   const aboutText = data?.portfolio?.aboutMe || resumeSummaryText;
   const coreSkillsText = resumeSkillsSnippet ? `Core skills: ${resumeSkillsSnippet}.` : "";
+  const ui = data?.ui && typeof data.ui === "object" ? data.ui : {};
+  const heroTaglineText =
+    (ui.heroTagline && String(ui.heroTagline).trim()) ||
+    "I build data systems that get results.";
+  const impactMainHeading =
+    (ui.impactAtAGlanceHeading && String(ui.impactAtAGlanceHeading).trim()) ||
+    "Results that matter";
+  const toolsStackPill =
+    (ui.toolsAndStackHeading && String(ui.toolsAndStackHeading).trim()) ||
+    "Core Competencies";
+  const skillsSectionBlurb =
+    stripMarkdownMarkers(String(data?.portfolio?.whatIDoBest || "").trim()) ||
+    "Proven expertise in transforming raw data into actionable insights through end-to-end data solutions.";
+  const workHighlightsHeading =
+    (ui.workHighlightsHeading && String(ui.workHighlightsHeading).trim()) ||
+    "Professional Journey";
+  const workHighlightsLede = String(ui.workHighlightsLede || "").trim();
+  const projectsMainHeading =
+    (ui.projectsHeading && String(ui.projectsHeading).trim()) ||
+    "Featured Projects";
   const baseUrl = ((import.meta as any).env?.BASE_URL ?? "/") as string;
   const pdfFile = runtime?.pdfFile ? String(runtime.pdfFile).trim() : "";
   const resumePdfHref =
@@ -676,7 +696,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                <span className="block text-blue-500 mt-2">{firstName}.</span>
              </h1>
              <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight leading-snug">
-               I build data systems that get results.
+               {heroTaglineText}
              </h2>
              <p className="text-lg text-slate-500 leading-relaxed max-w-xl">
                {aboutText}
@@ -849,7 +869,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Impact Metrics</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3 tracking-tight">
-              Results that matter
+              {impactMainHeading}
             </h2>
             <p className="text-slate-500 text-lg max-w-2xl mx-auto">
               Real outcomes from data engineering and analytics projects
@@ -891,11 +911,11 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
               <div className={`transition-all duration-700 ${skillsVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 border border-slate-200 mb-4">
                   <Sparkles className="w-4 h-4 text-slate-600" />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Core Competencies</span>
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">{toolsStackPill}</span>
                 </div>
                 <h2 className="text-3xl font-bold text-slate-900 mb-4 tracking-tight">What I bring to the table</h2>
                 <p className="text-slate-600 text-lg leading-relaxed">
-                  Proven expertise in transforming raw data into actionable insights through end-to-end data solutions.
+                  {skillsSectionBlurb}
                 </p>
               </div>
               
@@ -1137,7 +1157,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
           {/* Quote */}
           <div className="text-center">
             <p className="text-2xl md:text-3xl font-medium text-slate-700 italic leading-relaxed max-w-4xl mx-auto">
-              "I build data systems that teams depend on, not just one-off analyses."
+              &ldquo;{heroTaglineText}&rdquo;
             </p>
           </div>
         </div>
@@ -1155,8 +1175,12 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
               <Server className="w-4 h-4 text-slate-600" />
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Experience</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">Professional Journey</h2>
-            <p className="text-slate-500 text-lg">Following the path of data excellence</p>
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">{workHighlightsHeading}</h2>
+            {workHighlightsLede ? (
+              <p className="text-slate-500 text-lg">{workHighlightsLede}</p>
+            ) : (
+              <p className="text-slate-500 text-lg">Following the path of data excellence</p>
+            )}
           </div>
 
           {/* Journey Path Container - Overflow to extend beyond section */}
@@ -1315,7 +1339,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                 <Terminal className="w-4 h-4 text-slate-600" />
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Portfolio</span>
               </div>
-              <h2 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">Featured Projects</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">{projectsMainHeading}</h2>
               <p className="text-slate-500 font-light text-lg">Data engineering & analytics work</p>
             </div>
 
