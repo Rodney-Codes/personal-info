@@ -57,7 +57,12 @@ function renderMarkdownBlock(text) {
 
 async function loadData() {
   const base = import.meta.env.BASE_URL || "/";
-  const runtimeUrl = `${base}workflow.runtime.json`;
+  // Bust GitHub Pages / Fastly edge cache (max-age on JSON/HTML) after each deploy.
+  // Set VITE_SITE_DATA_BUST in CI (e.g. github.sha). Omitted locally -> same URL as before.
+  const bustParam = import.meta.env.VITE_SITE_DATA_BUST
+    ? `?v=${encodeURIComponent(String(import.meta.env.VITE_SITE_DATA_BUST))}`
+    : "";
+  const runtimeUrl = `${base}workflow.runtime.json${bustParam}`;
   const runtimeRes = await fetch(runtimeUrl, { cache: "no-store" });
   if (!runtimeRes.ok) {
     throw new Error(
@@ -77,7 +82,7 @@ async function loadData() {
   ) {
     throw new Error("workflow.runtime.json is missing required output filenames");
   }
-  const siteUrl = `${base}${siteFile}`;
+  const siteUrl = `${base}${siteFile}${bustParam}`;
   const res = await fetch(siteUrl, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Could not load ${siteFile} (${res.status}). Run: npm run sync`);

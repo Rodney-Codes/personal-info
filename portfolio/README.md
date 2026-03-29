@@ -67,7 +67,14 @@ These run in GitHub Actions on push/PR (see **`.github/workflows/portfolio.yml`*
 2. Push to **`main`**: workflow **Portfolio** builds with `GITHUB_PAGES=true` (asset base = `/<repo-name>/`), archives **`portfolio/dist/`** as a tar (including dotfiles like **`.nojekyll`**), uploads with **`actions/upload-artifact@v6`**, and **`deploy-pages`** publishes it.
 3. Site URL: **`https://<your-username>.github.io/<repository-name>/`** (repository name must match the path segment; GitHub sets `GITHUB_REPOSITORY` in Actions).
 
-**Live site looks wrong but localhost is fine:** GitHub Pages and browsers often cache generated JSON assets. The app loads `workflow.runtime.json` and selected site data with **`cache: no-store`**, but you may still need a **hard refresh** (Ctrl+Shift+R) or a short wait after deploy. Confirm **Actions** ran **deploy** on your default branch and open the site in a private window.
+**Live site looks wrong but localhost is fine:**
+
+1. **Unpushed or non-default branch:** Deploy only runs on pushes to the repository **default branch** (`main` / `master`). Open **Actions** and confirm the latest **Portfolio** run on that branch finished **build** and **deploy** (green).
+2. **Pages source:** **Settings → Pages → Source** must be **GitHub Actions**, not “Deploy from a branch” (that can serve an old tree or the repo `README`).
+3. **Edge cache:** GitHub Pages serves `index.html` and JSON with **`Cache-Control: max-age=600`** at the CDN. The app appends **`?v=<commit-sha>`** to `workflow.runtime.json` and the site JSON in **CI builds** (`VITE_SITE_DATA_BUST`) so each deploy uses new URLs and avoids stale data at the edge. After pulling that change, push once so the next deploy includes it.
+4. **Browser:** Hard refresh (Ctrl+Shift+R) or a private window after deploy.
+
+Local **`npm run dev`** does not set `VITE_SITE_DATA_BUST` (URLs unchanged). Production **`npm run build`** in GitHub Actions sets it from **`github.sha`**.
 
 **If you see the repo README instead of the portfolio:**
 
