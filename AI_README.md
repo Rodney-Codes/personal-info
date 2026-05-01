@@ -172,3 +172,19 @@ Equivalent step-by-step:
 - Preserve request/response schema backward compatibility unless explicitly versioning API.
 - Keep corpus routing (`corpus_id`) and per-query doc filtering (`doc_ids`) first-class.
 - Prefer deterministic behavior and explicit source metadata in all returned results.
+
+## 11) Validated workflow combinations (important)
+
+Only certain content/template combinations are currently considered validated:
+
+1. `resume_1` + `portfolio_2` + `resume_format_1` + `template_format_2`
+   - Primary production combination (default in `config/workflow.active.json`).
+   - Best fit for current portfolio UX and chatbot behavior.
+2. `resume_1` + `portfolio_1` + `resume_format_1` + `template_format_1`
+   - Supported fallback/legacy presentation path.
+
+When changing any of these IDs, assume the new combination is unvalidated until all checks pass:
+- `python -m tools workflow validate-config`
+- `python -m tools resume build`
+- `cd portfolio && npm run sync`
+- local site + chatbot smoke test

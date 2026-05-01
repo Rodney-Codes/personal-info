@@ -47,6 +47,17 @@ Validate after any config edit:
 python -m tools workflow validate-config
 ```
 
+## Supported combination matrix
+
+Not every content/template mix gives a high-quality output. Use these combinations as the currently validated options:
+
+| Resume content | Portfolio content | Resume format | Portfolio format | Status | Notes |
+|---|---|---|---|---|---|
+| `resume_1` | `portfolio_2` | `resume_format_1` | `template_format_2` | Recommended | Current production/default pairing with best visual and chatbot grounding quality. |
+| `resume_1` | `portfolio_1` | `resume_format_1` | `template_format_1` | Supported | Legacy/simple layout pairing; use when you want the minimal format1 presentation. |
+
+If you create new content/template IDs, treat them as unvalidated until you run the full checklist (`workflow validate-config`, resume build, `portfolio` sync, local smoke test).
+
 ## Python venv
 
 - Venv lives at `.venv/`. In Cursor/VS Code, new terminals in this repo can auto-activate it.
