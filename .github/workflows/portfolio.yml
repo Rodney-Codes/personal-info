@@ -56,6 +56,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           # Unique per commit so workflow.runtime.json / site JSON bypass Fastly max-age=600 edge cache
           VITE_SITE_DATA_BUST: ${{ github.sha }}
+          # Chatbot backend endpoint and corpus selector from GitHub Actions Variables
+          VITE_CHATBOT_API_BASE: ${{ vars.VITE_CHATBOT_API_BASE }}
+          VITE_CHATBOT_CORPUS_ID: ${{ vars.VITE_CHATBOT_CORPUS_ID }}
         run: |
           npm ci
           npm run sync
