@@ -82,6 +82,87 @@ const OUT_SITE = WORKFLOW.outSite;
 const PDF_SRC = WORKFLOW.pdfSrc;
 const PDF_OUT = WORKFLOW.pdfOut;
 const RUNTIME_OUT = path.join(PORTFOLIO_ROOT, "public", "workflow.runtime.json");
+const CHATBOT_DIR = path.join(PORTFOLIO_ROOT, "public", "chatbot");
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function addChunk(chunks, chunk) {
+  if (!chunk || !chunk.text) return;
+  const text = normalizeText(chunk.text);
+  if (!text) return;
+  chunks.push({ ...chunk, text });
+}
+
+function buildChatbotIndex(site) {
+  const chunks = [];
+  const resumeSource = `/content/resumes/${String(WORKFLOW.config.resume_content_id || "").trim()}.md`;
+  const portfolioSource = `/content/portfolios/${String(WORKFLOW.config.portfolio_content_id || "").trim()}.md`;
+
+  addChunk(chunks, {
+    chunk_id: "summary-1",
+    doc_id: "resume_summary",
+    title: "Professional Summary",
+    section: "summary",
+    source: resumeSource,
+    text: site.summary,
+  });
+
+  (site.experience || []).forEach((job, idx) => {
+    addChunk(chunks, {
+      chunk_id: `experience-${idx + 1}`,
+      doc_id: "resume_experience",
+      title: job.displayTitle || job.title || "Experience",
+      section: "experience",
+      source: resumeSource,
+      text: [job.displayTitle || job.title, job.company, job.location, job.dates, ...(job.bullets || [])].join(" "),
+    });
+  });
+
+  (site.projects || []).forEach((project, idx) => {
+    addChunk(chunks, {
+      chunk_id: `projects-${idx + 1}`,
+      doc_id: "resume_projects",
+      title: project.displayTitle || project.title || "Project",
+      section: "projects",
+      source: resumeSource,
+      text: [
+        project.displayTitle || project.title,
+        project.company,
+        project.location,
+        project.dates,
+        ...(project.bullets || []),
+      ].join(" "),
+    });
+  });
+
+  (site.skills || []).forEach((skill, idx) => {
+    addChunk(chunks, {
+      chunk_id: `skills-${idx + 1}`,
+      doc_id: "resume_skills",
+      title: skill.label || "Skill",
+      section: "skills",
+      source: resumeSource,
+      text: `${skill.label || ""} ${skill.value || ""}`,
+    });
+  });
+
+  Object.entries(site.portfolio || {}).forEach(([sectionKey, sectionText], idx) => {
+    addChunk(chunks, {
+      chunk_id: `portfolio-${idx + 1}`,
+      doc_id: "portfolio_content",
+      title: sectionKey,
+      section: sectionKey,
+      source: portfolioSource,
+      text: sectionText,
+    });
+  });
+
+  return chunks;
+}
 
 function parseContactLine(line) {
   const contact = {
@@ -464,15 +545,24 @@ function main() {
   fs.writeFileSync(OUT_SITE, JSON.stringify(site, null, 2), "utf8");
   console.log("Wrote", path.relative(PORTFOLIO_ROOT, OUT_SITE));
 
+  const profileId = String(WORKFLOW.config.profile_id || "").trim() || "default";
+  const chatbotIndexFile = `index.${profileId}.json`;
+  const chatbotIndexPath = path.join(CHATBOT_DIR, chatbotIndexFile);
+  const chatbotIndex = buildChatbotIndex(site);
+  fs.mkdirSync(CHATBOT_DIR, { recursive: true });
+  fs.writeFileSync(chatbotIndexPath, JSON.stringify(chatbotIndex, null, 2), "utf8");
+  console.log("Wrote", path.relative(PORTFOLIO_ROOT, chatbotIndexPath));
+
   if (fs.existsSync(PDF_SRC)) {
     fs.copyFileSync(PDF_SRC, PDF_OUT);
     console.log("Copied", path.relative(PORTFOLIO_ROOT, PDF_OUT));
   }
 
   const runtime = {
-    profile_id: String(WORKFLOW.config.profile_id || ""),
+    profile_id: profileId,
     site_json_file: path.basename(OUT_SITE),
     resume_pdf_file: path.basename(PDF_OUT),
+    chatbot_index_file: `chatbot/${chatbotIndexFile}`,
     generated_at_utc: new Date().toISOString(),
     selected: {
       resume_content_id: String(WORKFLOW.config.resume_content_id || ""),

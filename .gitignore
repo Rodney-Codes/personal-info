@@ -37,3 +37,7 @@ portfolio/public/local-assets/
 # Resume PDF build output (see resume_pdf/, tools resume build)
 artifacts/*
 !artifacts/.gitkeep
+
+# Chatbot generated corpora/index artifacts
+data/processed/
+data/index/

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download, MessageCircle, Send } from 'lucide-react';
 import { NAV_ITEMS, PROJECT_ICONS, categoryIconForLabel } from './constants';
 import SkillChart from './components/SkillChart';
 import AiAssistant from './components/AiAssistant';
@@ -287,6 +287,151 @@ function githubUsernameFromContact(contact: any): string {
 
 const GITHUB_AVATAR_STORAGE_PREFIX = "pi_github_avatar:v1:";
 const GITHUB_AVATAR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+function tokenize(text: string): string[] {
+  return String(text || "").toLowerCase().match(/[a-z0-9]+/g) || [];
+}
+
+const CHATBOT_API_BASE = String((import.meta as any).env?.VITE_CHATBOT_API_BASE || "").trim();
+const CHATBOT_CORPUS_ID = String((import.meta as any).env?.VITE_CHATBOT_CORPUS_ID || "default").trim();
+
+function detectIntent(queryTokens: string[]): "skills" | "experience" | "projects" | "education" | "contact" | "general" {
+  const has = (terms: string[]) => terms.some((term) => queryTokens.includes(term));
+  if (has(["sql", "python", "skills", "skill", "tools", "stack"])) return "skills";
+  if (has(["experience", "years", "worked", "background", "career"])) return "experience";
+  if (has(["project", "projects", "built", "build"])) return "projects";
+  if (has(["education", "degree", "college", "university"])) return "education";
+  if (has(["contact", "email", "linkedin", "github", "reach"])) return "contact";
+  return "general";
+}
+
+function intentBoost(chunk: any, intent: string): number {
+  const section = String(chunk?.section || "").toLowerCase();
+  const doc = String(chunk?.doc_id || "").toLowerCase();
+  const title = String(chunk?.title || "").toLowerCase();
+  const text = `${section} ${doc} ${title}`;
+  const intentTerms: Record<string, string[]> = {
+    skills: ["skill", "tools", "stack", "sql", "python"],
+    experience: ["experience", "summary", "work", "years"],
+    projects: ["project"],
+    education: ["education", "college", "degree"],
+    contact: ["contact", "email", "linkedin", "github"],
+    general: [],
+  };
+  const terms = intentTerms[intent] || [];
+  return terms.some((term) => text.includes(term)) ? 2 : 0;
+}
+
+function scoreChunk(queryTokens: string[], chunkText: string): number {
+  const tokens = tokenize(chunkText);
+  if (!tokens.length || !queryTokens.length) return 0;
+  const counts = new Map<string, number>();
+  for (const token of tokens) counts.set(token, (counts.get(token) || 0) + 1);
+  let score = 0;
+  for (const token of queryTokens) score += counts.get(token) || 0;
+  return score;
+}
+
+function searchIndex(index: any[], question: string, topK = 3): any[] {
+  const queryTokens = tokenize(question);
+  const intent = detectIntent(queryTokens);
+  return (Array.isArray(index) ? index : [])
+    .map((chunk) => ({
+      ...chunk,
+      score: scoreChunk(queryTokens, String(chunk?.text || "")) + intentBoost(chunk, intent),
+    }))
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
+function extractBestSentences(text: string, queryTokens: string[], maxSentences = 2): string[] {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (!sentences.length) return [];
+
+  const scored = sentences
+    .map((sentence) => {
+      const tokens = tokenize(sentence);
+      let score = 0;
+      for (const token of queryTokens) {
+        if (tokens.includes(token)) score += 1;
+      }
+      return { sentence, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const picked = scored.filter((item) => item.score > 0).slice(0, maxSentences);
+  if (picked.length) return picked.map((item) => item.sentence);
+  return sentences.slice(0, maxSentences);
+}
+
+function detectSkillEntity(question: string): string {
+  const q = String(question || "").toLowerCase();
+  const known = ["sql", "python", "aws", "tableau", "power bi", "mongodb", "postgresql", "mysql"];
+  for (const item of known) {
+    if (q.includes(item)) return item;
+  }
+  return "";
+}
+
+function extractYearsValue(text: string): string {
+  const normalized = String(text || "");
+  const match = normalized.match(/(\d+\+?)\s+years?/i);
+  return match ? match[1] : "";
+}
+
+function buildTailoredAnswer(results: any[], question: string): string {
+  const queryTokens = tokenize(question);
+  const intent = detectIntent(queryTokens);
+  const asksYears = queryTokens.includes("years") || queryTokens.includes("year");
+  const skillEntity = detectSkillEntity(question);
+  const top = results[0];
+  const second = results[1];
+
+  const lines = extractBestSentences(String(top?.text || ""), queryTokens, 2);
+  if (lines.length < 2 && second?.text) {
+    const extra = extractBestSentences(String(second.text), queryTokens, 1);
+    if (extra.length) lines.push(extra[0]);
+  }
+  const concise = lines.join(" ").slice(0, 320).trim();
+  const yearsValue = extractYearsValue(`${top?.text || ""} ${second?.text || ""}`);
+
+  if (asksYears && skillEntity && yearsValue) {
+    const techLabel = skillEntity.toUpperCase() === "AWS" ? "AWS" : skillEntity.toUpperCase();
+    const evidence = concise || "my portfolio highlights applied experience across projects and workflows.";
+    return `I have about ${yearsValue} years of experience working with ${techLabel}. ${evidence}`.trim();
+  }
+
+  const prefixByIntent: Record<string, string> = {
+    skills: "Based on my profile,",
+    experience: "Based on my experience,",
+    projects: "Based on my projects,",
+    education: "From my education background,",
+    contact: "You can reach me via the details in my profile,",
+    general: "Here is what matches your question,",
+  };
+  const prefix = prefixByIntent[intent] || prefixByIntent.general;
+  return `${prefix} ${concise || "I could not extract a concise answer, but I found related information."}`.trim();
+}
+
+async function queryBackendChat(question: string): Promise<any | null> {
+  if (!CHATBOT_API_BASE) return null;
+  const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: question,
+      corpus_id: CHATBOT_CORPUS_ID,
+      top_k: 3,
+      min_score: 0.0,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Backend chat failed (${response.status})`);
+  }
+  return response.json();
+}
 
 type GithubAvatarCache = { url: string; savedAt: number };
 
@@ -323,6 +468,137 @@ function stripUrlQueryForCompare(href: string): string {
     return href;
   }
 }
+
+const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile }) => {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const indexRef = useRef<any[] | null>(null);
+  const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
+    { role: "assistant", text: "Hi, feel free to ask me anything that you would want to know about me" },
+  ]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const question = input.trim();
+    if (!question) return;
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: question },
+    ]);
+    setInput("");
+    setSubmitting(true);
+    try {
+      if (!indexRef.current) {
+        const base = ((import.meta as any).env?.BASE_URL ?? "/") as string;
+        const bustParam = (import.meta as any).env?.VITE_SITE_DATA_BUST
+          ? `?v=${encodeURIComponent(String((import.meta as any).env?.VITE_SITE_DATA_BUST))}`
+          : "";
+        const response = await fetch(`${base}${chatbotIndexFile}${bustParam}`, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Could not load ${chatbotIndexFile} (${response.status})`);
+        }
+        indexRef.current = await response.json();
+      }
+      const results = searchIndex(indexRef.current || [], question, 3);
+      if (!results.length) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: "I could not find a grounded answer in the current portfolio documents." },
+        ]);
+      } else {
+        const top = results[0];
+        let answer = "";
+        try {
+          const backend = await queryBackendChat(question);
+          if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
+            answer = backend.answer.trim();
+          }
+        } catch (_error) {
+          answer = "";
+        }
+        const tailored = buildTailoredAnswer(results, question);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: `${answer || tailored}\n\nSource: ${top.source}` },
+        ]);
+      }
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "Search index is unavailable right now. Please try again shortly." },
+      ]);
+      console.error(error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      {open ? (
+        <div className="mb-3 w-[min(92vw,340px)] rounded-xl border border-slate-700 bg-slate-900 text-slate-100 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-700 px-3 py-2">
+            <h3 className="text-sm font-semibold">Ask Me Anything</h3>
+            <button
+              type="button"
+              className="rounded-md border border-slate-600 px-2 py-1 text-xs hover:bg-slate-800"
+              onClick={() => setOpen(false)}
+              aria-label="Close AMA chat"
+            >
+              x
+            </button>
+          </div>
+          <div className="grid max-h-64 gap-2 overflow-y-auto px-3 py-3">
+            {messages.map((message, idx) => (
+              <div
+                key={`${message.role}-${idx}`}
+                className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                  message.role === "user"
+                    ? "ml-auto max-w-[90%] bg-blue-700 text-white"
+                    : "max-w-[94%] border border-slate-700 bg-slate-800 text-slate-200"
+                }`}
+              >
+                {message.text}
+              </div>
+            ))}
+          </div>
+          <form className="flex gap-2 border-t border-slate-700 p-3" onSubmit={submit}>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your question..."
+              disabled={submitting}
+              className="flex-1 rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center gap-1 rounded-md border border-blue-500 bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600"
+            >
+              <Send className="h-4 w-4" />
+              Send
+            </button>
+          </form>
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="group relative inline-flex items-center gap-2 rounded-full border border-blue-400 bg-blue-900 px-3 py-3 text-sm font-semibold text-blue-100 shadow-lg hover:bg-blue-800"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <MessageCircle className="h-4 w-4" />
+        <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-14 group-hover:opacity-100 group-focus-visible:max-w-14 group-focus-visible:opacity-100">
+          AMA
+        </span>
+        <span className="pointer-events-none absolute bottom-[calc(100%+8px)] right-0 translate-y-1 whitespace-nowrap rounded-md border border-[#355783] bg-[#13263f] px-2 py-1 text-[11px] text-[#eaf2ff] opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+          Ask me anything
+        </span>
+      </button>
+    </div>
+  );
+};
 
 const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const [activeSection, setActiveSection] = useState('about');
@@ -457,6 +733,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
     optimisticGithubAvatarPng ||
     localProfileFallback;
   const profilePhotoAlt = profileName || "Profile photo";
+  const chatbotIndexFile = String(runtime?.chatbotIndexFile || "chatbot/index.default.json");
   const pdfFile = runtime?.pdfFile ? String(runtime.pdfFile).trim() : "";
   const resumePdfHref =
     data?.pdfAvailable && pdfFile ? `${baseUrl}${pdfFile}` : null;
@@ -1644,6 +1921,8 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       >
         <ArrowUp className="w-5 h-5" />
       </button>
+
+      <AmaWidget chatbotIndexFile={chatbotIndexFile} />
 
     </div>
   );

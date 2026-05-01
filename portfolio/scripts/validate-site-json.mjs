@@ -31,9 +31,20 @@ const siteFile =
 if (!siteFile) {
   fail('expected non-empty string "site_json_file" in workflow.runtime.json');
 }
+const chatbotFile =
+  runtime && typeof runtime.chatbot_index_file === "string" && runtime.chatbot_index_file.trim()
+    ? runtime.chatbot_index_file.trim()
+    : "";
+if (!chatbotFile) {
+  fail('expected non-empty string "chatbot_index_file" in workflow.runtime.json');
+}
 const SITE_JSON = path.join(PUBLIC_DIR, siteFile);
 if (!fs.existsSync(SITE_JSON)) {
   fail(`missing ${SITE_JSON} — run: npm run sync`);
+}
+const CHATBOT_JSON = path.join(PUBLIC_DIR, chatbotFile);
+if (!fs.existsSync(CHATBOT_JSON)) {
+  fail(`missing ${CHATBOT_JSON} — run: npm run sync`);
 }
 
 let data;

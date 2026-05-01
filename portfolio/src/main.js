@@ -92,10 +92,15 @@ async function loadData() {
     runtime.selected && typeof runtime.selected === "object"
       ? runtime.selected
       : null;
+  const chatbotIndexFile =
+    runtime?.chatbot_index_file && typeof runtime.chatbot_index_file === "string"
+      ? runtime.chatbot_index_file
+      : "chatbot/index.default.json";
   return {
     data,
     runtime: {
       pdfFile,
+      chatbotIndexFile,
       profileId: runtime.profile_id,
       selected,
     },
@@ -466,6 +471,284 @@ function activateFormat2Interactions() {
   }
 }
 
+function tokenize(text) {
+  return String(text || "")
+    .toLowerCase()
+    .match(/[a-z0-9]+/g) || [];
+}
+
+const CHATBOT_API_BASE = String(import.meta.env.VITE_CHATBOT_API_BASE || "").trim();
+const CHATBOT_CORPUS_ID = String(import.meta.env.VITE_CHATBOT_CORPUS_ID || "default").trim();
+
+function detectIntent(queryTokens) {
+  const has = (terms) => terms.some((term) => queryTokens.includes(term));
+  if (has(["sql", "python", "skills", "skill", "tools", "stack"])) return "skills";
+  if (has(["experience", "years", "worked", "background", "career"])) return "experience";
+  if (has(["project", "projects", "built", "build"])) return "projects";
+  if (has(["education", "degree", "college", "university"])) return "education";
+  if (has(["contact", "email", "linkedin", "github", "reach"])) return "contact";
+  return "general";
+}
+
+function intentBoost(chunk, intent) {
+  const section = String(chunk?.section || "").toLowerCase();
+  const doc = String(chunk?.doc_id || "").toLowerCase();
+  const title = String(chunk?.title || "").toLowerCase();
+  const text = `${section} ${doc} ${title}`;
+
+  const intentTerms = {
+    skills: ["skill", "tools", "stack", "sql", "python"],
+    experience: ["experience", "summary", "work", "years"],
+    projects: ["project"],
+    education: ["education", "college", "degree"],
+    contact: ["contact", "email", "linkedin", "github"],
+    general: [],
+  };
+  const terms = intentTerms[intent] || [];
+  return terms.some((term) => text.includes(term)) ? 2 : 0;
+}
+
+function scoreChunk(queryTokens, chunkText) {
+  const tokens = tokenize(chunkText);
+  if (!tokens.length || !queryTokens.length) return 0;
+  const counts = new Map();
+  for (const token of tokens) {
+    counts.set(token, (counts.get(token) || 0) + 1);
+  }
+  let score = 0;
+  for (const token of queryTokens) {
+    score += counts.get(token) || 0;
+  }
+  return score;
+}
+
+function searchIndex(index, question, topK = 3) {
+  const queryTokens = tokenize(question);
+  const intent = detectIntent(queryTokens);
+  return (Array.isArray(index) ? index : [])
+    .map((chunk) => ({
+      ...chunk,
+      score: scoreChunk(queryTokens, chunk.text || "") + intentBoost(chunk, intent),
+    }))
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
+function extractBestSentences(text, queryTokens, maxSentences = 2) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (!sentences.length) return [];
+
+  const scored = sentences
+    .map((sentence) => {
+      const tokens = tokenize(sentence);
+      let score = 0;
+      for (const token of queryTokens) {
+        if (tokens.includes(token)) score += 1;
+      }
+      return { sentence, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const picked = scored.filter((item) => item.score > 0).slice(0, maxSentences);
+  if (picked.length) return picked.map((item) => item.sentence);
+  return sentences.slice(0, maxSentences);
+}
+
+function detectSkillEntity(question) {
+  const q = String(question || "").toLowerCase();
+  const known = ["sql", "python", "aws", "tableau", "power bi", "mongodb", "postgresql", "mysql"];
+  for (const item of known) {
+    if (q.includes(item)) return item;
+  }
+  return "";
+}
+
+function extractYearsValue(text) {
+  const normalized = String(text || "");
+  const match = normalized.match(/(\d+\+?)\s+years?/i);
+  return match ? match[1] : "";
+}
+
+function buildTailoredAnswer(results, question) {
+  const queryTokens = tokenize(question);
+  const intent = detectIntent(queryTokens);
+  const asksYears = queryTokens.includes("years") || queryTokens.includes("year");
+  const skillEntity = detectSkillEntity(question);
+  const top = results[0];
+  const second = results[1];
+
+  const lines = extractBestSentences(top?.text || "", queryTokens, 2);
+  if (lines.length < 2 && second?.text) {
+    const extra = extractBestSentences(second.text, queryTokens, 1);
+    if (extra.length) lines.push(extra[0]);
+  }
+  const concise = lines.join(" ").slice(0, 320).trim();
+  const yearsValue = extractYearsValue(`${top?.text || ""} ${second?.text || ""}`);
+
+  if (asksYears && skillEntity && yearsValue) {
+    const techLabel = skillEntity.toUpperCase() === "AWS" ? "AWS" : skillEntity.toUpperCase();
+    const evidence = concise || "my portfolio highlights applied experience across projects and workflows.";
+    return `I have about ${yearsValue} years of experience working with ${techLabel}. ${evidence}`.trim();
+  }
+
+  const prefixByIntent = {
+    skills: "Based on my profile,",
+    experience: "Based on my experience,",
+    projects: "Based on my projects,",
+    education: "From my education background,",
+    contact: "You can reach me via the details in my profile,",
+    general: "Here is what matches your question,",
+  };
+  const prefix = prefixByIntent[intent] || prefixByIntent.general;
+  return `${prefix} ${concise || "I could not extract a concise answer, but I found related information."}`.trim();
+}
+
+async function queryBackendChat(question) {
+  if (!CHATBOT_API_BASE) return null;
+  const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: question,
+      corpus_id: CHATBOT_CORPUS_ID,
+      top_k: 3,
+      min_score: 0.0,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Backend chat failed (${response.status})`);
+  }
+  return response.json();
+}
+
+async function loadChatbotIndex(chatbotIndexFile) {
+  const base = import.meta.env.BASE_URL || "/";
+  const bustParam = import.meta.env.VITE_SITE_DATA_BUST
+    ? `?v=${encodeURIComponent(String(import.meta.env.VITE_SITE_DATA_BUST))}`
+    : "";
+  const indexUrl = `${base}${chatbotIndexFile}${bustParam}`;
+  const response = await fetch(indexUrl, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Could not load ${chatbotIndexFile} (${response.status})`);
+  }
+  return response.json();
+}
+
+function mountAmaWidget(runtime) {
+  const existing = document.getElementById("ama-widget");
+  if (existing) {
+    return;
+  }
+  let indexPromise = null;
+
+  const host = document.createElement("div");
+  host.id = "ama-widget";
+  host.className = "ama-widget";
+  host.innerHTML = `
+    <div class="ama-panel" hidden>
+      <div class="ama-panel-header">
+        <h3>Ask Me Anything</h3>
+        <button type="button" class="ama-close" aria-label="Close AMA chat">x</button>
+      </div>
+      <div class="ama-messages">
+        <div class="ama-msg ama-msg-assistant">Hi, feel free to ask me anything that you would want to know about me</div>
+      </div>
+      <form class="ama-input-row">
+        <input type="text" name="question" placeholder="Type your question..." aria-label="Type your question" />
+        <button type="submit" class="ama-send">Send</button>
+      </form>
+    </div>
+    <button type="button" class="ama-bubble" aria-expanded="false" aria-controls="ama-chat-panel">
+      <svg class="ama-bubble-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H5l-2 2v-10.5A8.5 8.5 0 1 1 21 12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      </svg>
+      <span class="ama-bubble-label">AMA</span>
+      <span class="ama-bubble-tooltip">Ask me anything</span>
+    </button>
+  `;
+
+  const panel = host.querySelector(".ama-panel");
+  panel.id = "ama-chat-panel";
+  const bubble = host.querySelector(".ama-bubble");
+  const closeBtn = host.querySelector(".ama-close");
+  const form = host.querySelector(".ama-input-row");
+  const input = form.querySelector('input[name="question"]');
+  const messages = host.querySelector(".ama-messages");
+
+  const appendMessage = (text, role) => {
+    const node = document.createElement("div");
+    node.className = `ama-msg ${role === "user" ? "ama-msg-user" : "ama-msg-assistant"}`;
+    node.textContent = text;
+    messages.appendChild(node);
+    messages.scrollTop = messages.scrollHeight;
+  };
+  const setSubmitState = (isSubmitting) => {
+    input.disabled = isSubmitting;
+    form.querySelector(".ama-send").disabled = isSubmitting;
+  };
+
+  const openPanel = () => {
+    panel.hidden = false;
+    bubble.setAttribute("aria-expanded", "true");
+    input.focus();
+  };
+  const closePanel = () => {
+    panel.hidden = true;
+    bubble.setAttribute("aria-expanded", "false");
+  };
+
+  bubble.addEventListener("click", () => {
+    if (panel.hidden) {
+      openPanel();
+    } else {
+      closePanel();
+    }
+  });
+  closeBtn.addEventListener("click", closePanel);
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const question = input.value.trim();
+    if (!question) {
+      return;
+    }
+    appendMessage(question, "user");
+    input.value = "";
+    setSubmitState(true);
+    try {
+      indexPromise = indexPromise || loadChatbotIndex(runtime.chatbotIndexFile);
+      const index = await indexPromise;
+      const results = searchIndex(index, question, 3);
+      if (!results.length) {
+        appendMessage("I could not find a grounded answer in the current portfolio documents.", "assistant");
+      } else {
+        const top = results[0];
+        let answer = "";
+        try {
+          const backend = await queryBackendChat(question);
+          if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
+            answer = backend.answer.trim();
+          }
+        } catch (_error) {
+          answer = "";
+        }
+        const fallback = buildTailoredAnswer(results, question);
+        appendMessage(`${answer || fallback}\n\nSource: ${top.source}`, "assistant");
+      }
+    } catch (error) {
+      appendMessage("Search index is unavailable right now. Please try again shortly.", "assistant");
+      console.error(error);
+    } finally {
+      setSubmitState(false);
+      input.focus();
+    }
+  });
+
+  document.body.appendChild(host);
+}
+
 async function main() {
   const app = document.getElementById("app");
   try {
@@ -488,6 +771,7 @@ async function main() {
       return;
     }
     app.innerHTML = renderFormat1(data, runtime);
+    mountAmaWidget(runtime);
   } catch (e) {
     app.innerHTML = `
       <main class="site-header" style="background:#450a0a;color:#fecaca;">
