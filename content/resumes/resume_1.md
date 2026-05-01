@@ -29,8 +29,6 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 
 - Led a 5-member team to analyze oncologists' **awareness and perceptions** of drug advertising materials, revamping sales marketing strategies and doubling market share
 - Applied **advanced market research methodologies** (e.g., derived importance, conjoint analysis) to drive a 2X increase in client drug market share, contributing $8M+ in top-line impact
-- **Reduced payroll/benefits administration costs by 30%** through effective negotiation while maintaining service quality
-- Assessed the **impact of competitor drug launches** and proposed differentiation strategies, safeguarding $7M+ in market coverage
 - **Developed automation tools** adopted ZS-wide, reducing project costs by 50% and effort by 80% while maintaining quality
 - Automated Excel processes using Python and SQL, reducing data quality check efforts by ~60%
 - **Led client discussions and pitches**, securing $1.5M+ in business and mentoring 25+ recruits on business understanding and tools
@@ -43,8 +41,10 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 ## Projects
 
 **Resume and portfolio builder** | Markdown, Vite, Python PDF tooling | 2026
-
 - Started an open-source project to create a single source of truth for resumes and portfolios, reducing duplicated work, and building a small sandbox to learn static sites, CI, and lightweight automation.
+
+**Portfolio AMA chatbot (RAG-lite)** | FastAPI, BM25, Hybrid Retrieval, Hugging Face | 2026
+- Built and deployed a lightweight portfolio chatbot with hybrid retrieval (BM25 + vector search), grounded response generation, and production-safe fallback handling.
 
 ---
 

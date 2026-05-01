@@ -737,7 +737,7 @@ function mountAmaWidget(runtime) {
           answer = "";
         }
         const fallback = buildTailoredAnswer(results, question);
-        appendMessage(`${answer || fallback}\n\nSource: ${top.source}`, "assistant");
+        appendMessage(`${answer || fallback}`, "assistant");
       }
     } catch (error) {
       appendMessage("Search index is unavailable right now. Please try again shortly.", "assistant");

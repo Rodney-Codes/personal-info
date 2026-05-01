@@ -523,7 +523,7 @@ const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile })
         const tailored = buildTailoredAnswer(results, question);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: `${answer || tailored}\n\nSource: ${top.source}` },
+          { role: "assistant", text: `${answer || tailored}` },
         ]);
       }
     } catch (error) {
