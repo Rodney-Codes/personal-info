@@ -66,6 +66,16 @@ def main() -> None:
             args.index_root,
         ]
     )
+    run(
+        [
+            sys.executable,
+            "scripts/build_vector_index.py",
+            "--chunks-path",
+            str(chunks_path),
+            "--output-path",
+            str(Path(args.index_root) / args.corpus_id / "vector_index.json"),
+        ]
+    )
 
 
 if __name__ == "__main__":

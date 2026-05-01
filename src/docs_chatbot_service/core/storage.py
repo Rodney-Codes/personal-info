@@ -20,6 +20,9 @@ class IndexStorage:
     def corpus_path(self, corpus_id: str) -> Path:
         return self._index_root / corpus_id / "chunks.json"
 
+    def vector_index_path(self, corpus_id: str) -> Path:
+        return self._index_root / corpus_id / "vector_index.json"
+
     def exists(self, corpus_id: str) -> bool:
         return self.corpus_path(corpus_id).exists()
 
@@ -28,6 +31,9 @@ class IndexStorage:
         if not path.exists():
             raise FileNotFoundError(f"Corpus not found: {corpus_id}")
         return json.loads(path.read_text(encoding="utf-8"))
+
+    def vector_index_exists(self, corpus_id: str) -> bool:
+        return self.vector_index_path(corpus_id).exists()
 
     def list_corpora(self) -> List[CorpusStat]:
         if not self._index_root.exists():

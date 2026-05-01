@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from docs_chatbot_service.core.search import BM25SearchEngine
 from docs_chatbot_service.core.storage import CorpusStat, IndexStorage
+from docs_chatbot_service.core.vector_search import HashedVectorIndex, build_hybrid_score
 
 
 @dataclass(frozen=True)
@@ -35,13 +36,18 @@ class RetrievalService:
         raise FileNotFoundError(f"Corpus not found: {corpus_id}")
 
     @lru_cache(maxsize=32)
-    def _load_corpus(self, corpus_id: str) -> tuple[List[dict], BM25SearchEngine]:
+    def _load_corpus(
+        self, corpus_id: str
+    ) -> tuple[List[dict], BM25SearchEngine, Optional[HashedVectorIndex]]:
         chunks = self._storage.load_chunks(corpus_id)
         engine = BM25SearchEngine(chunks)
-        return chunks, engine
+        vector_index: Optional[HashedVectorIndex] = None
+        if self._storage.vector_index_exists(corpus_id):
+            vector_index = HashedVectorIndex.load(self._storage.vector_index_path(corpus_id))
+        return chunks, engine, vector_index
 
     def search(self, params: SearchParams) -> List[dict]:
-        chunks, engine = self._load_corpus(params.corpus_id)
+        chunks, engine, vector_index = self._load_corpus(params.corpus_id)
         allowed_docs = set(params.doc_ids or [])
         has_filter = bool(params.doc_ids)
 
@@ -49,7 +55,15 @@ class RetrievalService:
         for chunk in chunks:
             if has_filter and chunk.get("doc_id") not in allowed_docs:
                 continue
-            score = engine.score(params.query, chunk)
+            bm25_score = engine.score(params.query, chunk)
+            vector_score = (
+                vector_index.score(params.query, chunk["chunk_id"]) if vector_index else 0.0
+            )
+            score = (
+                build_hybrid_score(bm25_score=bm25_score, vector_score=vector_score)
+                if vector_index
+                else bm25_score
+            )
             if score < params.min_score:
                 continue
 

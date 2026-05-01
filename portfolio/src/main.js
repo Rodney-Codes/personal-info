@@ -479,6 +479,7 @@ function tokenize(text) {
 
 const CHATBOT_API_BASE = String(import.meta.env.VITE_CHATBOT_API_BASE || "").trim();
 const CHATBOT_CORPUS_ID = String(import.meta.env.VITE_CHATBOT_CORPUS_ID || "default").trim();
+const CHATBOT_ALLOW_FALLBACK = String(import.meta.env.VITE_CHATBOT_ALLOW_FALLBACK || "true").trim().toLowerCase() !== "false";
 
 function detectIntent(queryTokens) {
   const has = (terms) => terms.some((term) => queryTokens.includes(term));
@@ -616,6 +617,7 @@ async function queryBackendChat(question) {
       corpus_id: CHATBOT_CORPUS_ID,
       top_k: 3,
       min_score: 0.0,
+      allow_fallback: CHATBOT_ALLOW_FALLBACK,
     }),
   });
   if (!response.ok) {
