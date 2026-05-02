@@ -21,7 +21,7 @@
     "title": "Decision Analytics Associate",
     "section": "experience",
     "source": "/content/resumes/resume_1.md",
-    "text": "Decision Analytics Associate ZS Associates Gurgaon, Delhi NCR Jun 2021 -- Jan 2024 Led a 5-member team to analyze oncologists' **awareness and perceptions** of drug advertising materials, revamping sales marketing strategies and doubling market share Applied **advanced market research methodologies** (e.g., derived importance, conjoint analysis) to drive a 2X increase in client drug market share, contributing $8M+ in top-line impact **Reduced payroll/benefits administration costs by 30%** through effective negotiation while maintaining service quality Assessed the **impact of competitor drug launches** and proposed differentiation strategies, safeguarding $7M+ in market coverage **Developed automation tools** adopted ZS-wide, reducing project costs by 50% and effort by 80% while maintaining quality Automated Excel processes using Python and SQL, reducing data quality check efforts by ~60% **Led client discussions and pitches**, securing $1.5M+ in business and mentoring 25+ recruits on business understanding and tools **Designed and updated dynamic Excel and Tableau dashboards** to present sales-force data, enabling informed decision-making Optimized a marketing **statistical model in R** to predict ideal product profiles based on randomized parameters from 250+ HCPs **Awarded \"RecognizeZS\"**, a distinction given to the top 1% of performers among 13K+ employees globally"
+    "text": "Decision Analytics Associate ZS Associates Gurgaon, Delhi NCR Jun 2021 -- Jan 2024 Led a 5-member team to analyze oncologists' **awareness and perceptions** of drug advertising materials, revamping sales marketing strategies and doubling market share Applied **advanced market research methodologies** (e.g., derived importance, conjoint analysis) to drive a 2X increase in client drug market share, contributing $8M+ in top-line impact **Developed automation tools** adopted ZS-wide, reducing project costs by 50% and effort by 80% while maintaining quality Automated Excel processes using Python and SQL, reducing data quality check efforts by ~60% **Led client discussions and pitches**, securing $1.5M+ in business and mentoring 25+ recruits on business understanding and tools **Designed and updated dynamic Excel and Tableau dashboards** to present sales-force data, enabling informed decision-making Optimized a marketing **statistical model in R** to predict ideal product profiles based on randomized parameters from 250+ HCPs **Awarded \"RecognizeZS\"**, a distinction given to the top 1% of performers among 13K+ employees globally"
   },
   {
     "chunk_id": "projects-1",
@@ -30,6 +30,14 @@
     "section": "projects",
     "source": "/content/resumes/resume_1.md",
     "text": "Resume and portfolio builder Markdown, Vite, Python PDF tooling 2026 Started an open-source project to create a single source of truth for resumes and portfolios, reducing duplicated work, and building a small sandbox to learn static sites, CI, and lightweight automation."
+  },
+  {
+    "chunk_id": "projects-2",
+    "doc_id": "resume_projects",
+    "title": "Portfolio AMA chatbot (RAG-lite)",
+    "section": "projects",
+    "source": "/content/resumes/resume_1.md",
+    "text": "Portfolio AMA chatbot (RAG-lite) FastAPI, BM25, Hybrid Retrieval, Hugging Face 2026 Built and deployed a lightweight portfolio chatbot with hybrid retrieval (BM25 + vector search), grounded response generation, and production-safe fallback handling."
   },
   {
     "chunk_id": "skills-1",

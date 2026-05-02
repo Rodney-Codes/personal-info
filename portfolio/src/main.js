@@ -19,6 +19,18 @@ function esc(s) {
     .replace(/>/g, "&gt;");
 }
 
+function safeHttpUrl(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s.startsWith("http") ? s : `https://${s}`);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
 /** Plain text with `segments` rendered as <code> (from portfolio.md ui.footerNote). */
 function renderInlineCodeSpans(s) {
   return String(s)
@@ -258,9 +270,14 @@ function renderProjectsFormat2(projects) {
       const cat = project?.company && String(project.company).trim() ? String(project.company).trim() : "General";
       const tech = project?.location && String(project.location).trim() ? String(project.location).trim() : "";
       const bullets = Array.isArray(project?.bullets) ? project.bullets : [];
+      const repoHref = safeHttpUrl(project?.repoUrl);
+      const titleText = esc(project?.displayTitle || project?.title || "Project");
+      const titleHtml = repoHref
+        ? `<a href="${esc(repoHref)}" target="_blank" rel="noreferrer">${titleText}</a>`
+        : titleText;
       return `<article class="f2-project-card f2-reveal" data-project-category="${esc(cat)}">
         <p class="f2-project-meta">${esc(cat)}${tech ? ` • ${esc(tech)}` : ""}${project?.dates ? ` • ${esc(project.dates)}` : ""}</p>
-        <h3>${esc(project?.displayTitle || project?.title || "Project")}</h3>
+        <h3>${titleHtml}</h3>
         <ul>${bullets.map((b) => `<li>${inlineBold(String(b))}</li>`).join("")}</ul>
       </article>`;
     })

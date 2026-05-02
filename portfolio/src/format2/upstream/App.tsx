@@ -112,12 +112,7 @@ const ProjectCard = React.memo(({ project, idx }: { project: any; idx: number })
   const Icon = PROJECT_ICONS[project.icon] || Terminal;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-
-  // Convert project title to URL-friendly slug - memoized
-  const projectSlug = React.useMemo(() =>
-    project.title.toLowerCase().replace(/\s+/g, '-'),
-    [project.title]
-  );
+  const repoHref = safeHttpUrl(project.repoUrl);
 
   // Slideshow effect - only on hover with faster transitions
   useEffect(() => {
@@ -177,7 +172,18 @@ const ProjectCard = React.memo(({ project, idx }: { project: any; idx: number })
             </div>
 
             <h3 className="text-lg font-bold text-slate-900 mb-2.5 leading-tight group-hover:text-blue-600 transition-colors">
-              {project.title}
+              {repoHref ? (
+                <a
+                  href={repoHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:underline decoration-slate-400 underline-offset-2"
+                >
+                  {project.title}
+                </a>
+              ) : (
+                project.title
+              )}
             </h3>
 
             <div className="space-y-1.5 mb-3">
@@ -209,6 +215,7 @@ const ProjectCard = React.memo(({ project, idx }: { project: any; idx: number })
 // Bento Grid Project Card
 const BentoProjectCard = ({ project }: { project: any }) => {
   const Icon = project.icon ? PROJECT_ICONS[project.icon] : Terminal;
+  const repoHref = safeHttpUrl(project.repoUrl);
 
   return (
     <div className="group relative h-full w-full overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 hover:shadow-2xl transition-all duration-500">
@@ -238,7 +245,13 @@ const BentoProjectCard = ({ project }: { project: any }) => {
           </div>
           
           <h3 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">
-            {project.title}
+            {repoHref ? (
+              <a href={repoHref} target="_blank" rel="noreferrer" className="hover:text-blue-300 transition-colors">
+                {project.title}
+              </a>
+            ) : (
+              project.title
+            )}
           </h3>
           
           <div className="space-y-1 mb-4 opacity-0 group-hover:opacity-100 h-0 group-hover:h-auto transition-all duration-300">
@@ -261,6 +274,19 @@ const BentoProjectCard = ({ project }: { project: any }) => {
     </div>
   );
 };
+
+/** Allowlisted http(s) URL for project repo links (resume `@repo` line). */
+function safeHttpUrl(raw: unknown): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s.startsWith("http") ? s : `https://${s}`);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.href;
+  } catch {
+    return "";
+  }
+}
 
 /** GitHub login from resume contact (profile root URL only). */
 function githubUsernameFromContact(contact: any): string {
@@ -852,6 +878,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       title: project?.title || `Project ${idx + 1}`,
       category: project?.category || "Projects",
       year,
+      repoUrl: safeHttpUrl(project?.repoUrl),
       description: bullets.length > 0 ? bullets : [String(project?.company || "").trim()].filter(Boolean),
       tech: Array.isArray(project?.tech) && project.tech.length > 0 ? project.tech : inferredProjectTech,
       icon: project?.icon || "Terminal",
@@ -1886,14 +1913,15 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
 
           <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-slate-500 text-sm">
-              Designed and built by{' '}
+              Designed by{' '}
               <a href="https://aistudio.google.com" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">
                 Google AI Studio
               </a>
-              {' '}and{' '}
-              <a href="https://claude.ai" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">
-                Claude Code
+              {' '}and built with{' '}
+              <a href="https://cursor.com" target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">
+                Cursor Agent
               </a>
+              .
             </div>
 
             <div className="flex gap-6">

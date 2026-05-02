@@ -18,6 +18,8 @@ export interface Project {
   image?: string;         // Background image URL
   images?: string[];      // Array of images for slideshow
   size?: 'normal' | 'large' | 'tall'; // Grid span control
+  /** HTTPS repo URL from resume `@repo` line (site sync). Title links when set. */
+  repoUrl?: string;
 }
 
 export interface SkillCategory {

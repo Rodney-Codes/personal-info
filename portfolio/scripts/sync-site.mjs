@@ -238,9 +238,35 @@ function collectBulletsFrom(lines, startIndex) {
   for (let i = startIndex; i < lines.length; i++) {
     const raw = lines[i];
     const ln = typeof raw === "string" ? raw.trim() : "";
-    if (ln.startsWith("- ")) bullets.push(ln.slice(2).trim());
+    if (!ln.startsWith("- ")) continue;
+    const body = ln.slice(2).trim();
+    if (/^@repo\s+/i.test(body)) continue;
+    bullets.push(body);
   }
   return bullets;
+}
+
+/** Optional project repo link: standalone `@repo https://...` or bullet `- @repo https://...`. */
+function extractRepoUrlFromLines(lines, startIndex) {
+  for (let i = startIndex; i < lines.length; i++) {
+    const ln = typeof lines[i] === "string" ? lines[i].trim() : "";
+    let m = ln.match(/^@repo\s+(\S+)/i);
+    if (!m && ln.startsWith("- ")) {
+      m = ln.slice(2).trim().match(/^@repo\s+(\S+)/i);
+    }
+    if (!m) continue;
+    let url = m[1].trim();
+    if (!/^https?:\/\//i.test(url) && /^github\.com\//i.test(url)) {
+      url = `https://${url}`;
+    }
+    try {
+      const u = new URL(url);
+      if (u.protocol === "http:" || u.protocol === "https:") return u.href;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return "";
 }
 
 /** Split lines where a new full-line **a** | b | c row begins (stacked compact projects). */
@@ -286,19 +312,23 @@ function parseExperience(body) {
       const firstLine = lines[0].trim().replace(/^#+\s*/, "");
       const tripleOnFirst = parseTripleMetaLine(firstLine);
       const secondTrim = (lines[1] || "").trim();
+      const secondIsRepoLine = /^@repo\s+/i.test(secondTrim);
 
       if (
         tripleOnFirst &&
         (lines.length === 1 ||
           secondTrim === "" ||
-          secondTrim.startsWith("-"))
+          secondTrim.startsWith("-") ||
+          secondIsRepoLine)
       ) {
+        const repoUrl = extractRepoUrlFromLines(lines, 1);
         jobs.push({
           title: tripleOnFirst.left,
           company: tripleOnFirst.middle,
           location: "",
           dates: tripleOnFirst.right,
           bullets: collectBulletsFrom(lines, 1),
+          ...(repoUrl ? { repoUrl } : {}),
         });
         continue;
       }
@@ -309,12 +339,14 @@ function parseExperience(body) {
       const company = metaMatch ? metaMatch[1].trim() : "";
       const location = metaMatch ? metaMatch[2].trim() : "";
       const dates = metaMatch ? metaMatch[3].trim() : "";
+      const repoUrl = extractRepoUrlFromLines(lines, 2);
       jobs.push({
         title,
         company,
         location,
         dates,
         bullets: collectBulletsFrom(lines, 2),
+        ...(repoUrl ? { repoUrl } : {}),
       });
     }
   }

@@ -15,6 +15,45 @@ Personal content and tooling: **versioned resume/portfolio content**, **template
 | **`__root__/`** | Marker package: `REPO_ROOT` and `repo_root_from()` so scripts don’t guess `parents[N]`. |
 | **`requirements.txt`** | Python dependencies for `resume_pdf`. |
 
+### Directory tree (quick reference)
+
+Omitted: generated or heavy dirs (`node_modules/`, `.venv/`, `dist/`, `.git/`, typical `__pycache__/`, gitignored sync outputs under `portfolio/public/`).
+
+```
+personal-info/
+├── .github/workflows/          # CI (e.g. portfolio build + Pages deploy)
+├── config/                     # workflow.active.json; config README
+├── content/
+│   ├── portfolios/             # versioned portfolio markdown
+│   └── resumes/                # versioned resume markdown
+├── docs/                       # workflow + chatbot docs
+├── portfolio/                  # Vite app (see portfolio/README.md)
+│   ├── public/                 # static assets (+ generated site JSON after sync)
+│   ├── scripts/                # sync-site.mjs, validate-site-json.mjs
+│   └── src/
+│       ├── format2/            # format2 shell + upstream React UI
+│       ├── lib/
+│       └── styles/
+├── resume_pdf/
+│   ├── assets/                 # HTML/CSS templates
+│   └── src/resume_pdf/         # PDF build library + CLI
+├── scripts/                    # venv, ingest, index helpers
+├── src/docs_chatbot_service/   # chatbot API / indexing package
+├── templates/
+│   ├── portfolio_formats/      # portfolio template manifests
+│   └── resume_formats/         # resume format manifests
+├── tests/
+├── tools/
+│   └── commands/               # python -m tools subcommands
+├── __root__/                   # repo root resolution helper
+├── AI_README.md
+├── LICENSE
+├── package.json                # forwards npm scripts into portfolio/
+├── pyproject.toml
+├── requirements.txt
+└── README.md
+```
+
 ## Task runner (central commands)
 
 From the **repository root**:

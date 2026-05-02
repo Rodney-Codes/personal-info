@@ -25,6 +25,18 @@ function renderInlineBold(text) {
   });
 }
 
+function safeHttpUrl(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s.startsWith("http") ? s : `https://${s}`);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
 function ProjectFilter({ projects }) {
   const categories = useMemo(
     () => [
@@ -61,21 +73,33 @@ function ProjectFilter({ projects }) {
         ))}
       </div>
       <div className="f2-project-grid">
-        {visible.map((project, idx) => (
-          <article className="f2-project-card f2-reveal" key={`${project.title}-${idx}`}>
-            <p className="f2-project-meta">
-              {project.company || "General"}
-              {project.location ? ` • ${project.location}` : ""}
-              {project.dates ? ` • ${project.dates}` : ""}
-            </p>
-            <h3>{project.displayTitle || project.title}</h3>
-            <ul>
-              {(project.bullets || []).map((b, bidx) => (
-                <li key={`${project.title}-${bidx}`}>{renderInlineBold(b)}</li>
-              ))}
-            </ul>
-          </article>
-        ))}
+        {visible.map((project, idx) => {
+          const repoHref = safeHttpUrl(project.repoUrl);
+          const titleLabel = project.displayTitle || project.title;
+          return (
+            <article className="f2-project-card f2-reveal" key={`${project.title}-${idx}`}>
+              <p className="f2-project-meta">
+                {project.company || "General"}
+                {project.location ? ` • ${project.location}` : ""}
+                {project.dates ? ` • ${project.dates}` : ""}
+              </p>
+              <h3>
+                {repoHref ? (
+                  <a href={repoHref} target="_blank" rel="noreferrer">
+                    {titleLabel}
+                  </a>
+                ) : (
+                  titleLabel
+                )}
+              </h3>
+              <ul>
+                {(project.bullets || []).map((b, bidx) => (
+                  <li key={`${project.title}-${bidx}`}>{renderInlineBold(b)}</li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
       </div>
     </>
   );
