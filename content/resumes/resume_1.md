@@ -45,7 +45,7 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 - Started an open-source project to create a single source of truth for resumes and portfolios, reducing duplicated work, and building a small sandbox to learn static sites, CI, and lightweight automation.
 
 **Portfolio AMA chatbot (RAG-lite)** | FastAPI, BM25, Hybrid Retrieval, Hugging Face | 2026
-@repo https://github.com/Rodney-Codes/personal-info
+@repo https://github.com/Rodney-Codes/docs-chatbot
 - Built and deployed a lightweight portfolio chatbot with hybrid retrieval (BM25 + vector search), grounded response generation, and production-safe fallback handling.
 
 ---
