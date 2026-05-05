@@ -630,7 +630,7 @@ function mountAmaWidget(runtime) {
       const index = await indexPromise;
       const results = searchIndex(index, question, 3);
       if (!results.length) {
-        appendMessage("I could not find a grounded answer in the current portfolio documents.", "assistant");
+        appendMessage("I'm unable to answer this, please contact Rohit for clarity on this query", "assistant");
       } else {
         const top = results[0];
         let answer = "";

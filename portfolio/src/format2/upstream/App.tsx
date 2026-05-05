@@ -430,7 +430,7 @@ const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile })
       if (!results.length) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: "I could not find a grounded answer in the current portfolio documents." },
+          { role: "assistant", text: "I'm unable to answer this, please contact Rohit for clarity on this query" },
         ]);
       } else {
         const top = results[0];
