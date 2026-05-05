@@ -1,6 +1,9 @@
 # Chatbot Integration Guide
 
-This repo includes the portfolio chatbot and frontend integration in one codebase.
+This repo includes portfolio frontend integration. The chatbot service can run either:
+
+- in-repo (legacy/local mode), or
+- as standalone service repo: [Rodney-Codes/docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot).
 
 ## Scope
 
@@ -45,6 +48,10 @@ And records it in runtime metadata:
 ## Deployment notes
 
 - Single GitHub Pages deployment is supported (no runtime API required).
-- Render backend deployment is supported and recommended for secure Hugging Face token usage.
+- Standalone chatbot backend deployment is supported and recommended:
+  - Set `VITE_CHATBOT_API_BASE` to deployed chatbot API URL.
+  - Keep app-specific corpus artifacts in this repo and load them into chatbot service by URL:
+    - `POST /corpora/load` (recommended preload step), or
+    - `chunks_url` / `vector_index_url` in request payloads.
 - Re-run `npm run sync` whenever active workflow content changes.
 

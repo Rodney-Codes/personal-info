@@ -3,6 +3,7 @@
  */
 
 import { profileHandleFromUrl } from "./lib/profileHandleFromUrl.js";
+import { buildTailoredAnswer, searchIndex } from "./chatbotNlp.js";
 
 function inlineBold(s) {
   return s
@@ -488,154 +489,42 @@ function activateFormat2Interactions() {
   }
 }
 
-function tokenize(text) {
-  return String(text || "")
-    .toLowerCase()
-    .match(/[a-z0-9]+/g) || [];
-}
-
 const CHATBOT_API_BASE = String(import.meta.env.VITE_CHATBOT_API_BASE || "").trim();
 const CHATBOT_CORPUS_ID = String(import.meta.env.VITE_CHATBOT_CORPUS_ID || "default").trim();
 const CHATBOT_ALLOW_FALLBACK = String(import.meta.env.VITE_CHATBOT_ALLOW_FALLBACK || "true").trim().toLowerCase() !== "false";
-
-function detectIntent(queryTokens) {
-  const has = (terms) => terms.some((term) => queryTokens.includes(term));
-  if (has(["sql", "python", "skills", "skill", "tools", "stack"])) return "skills";
-  if (has(["experience", "years", "worked", "background", "career"])) return "experience";
-  if (has(["project", "projects", "built", "build"])) return "projects";
-  if (has(["education", "degree", "college", "university"])) return "education";
-  if (has(["contact", "email", "linkedin", "github", "reach"])) return "contact";
-  return "general";
-}
-
-function intentBoost(chunk, intent) {
-  const section = String(chunk?.section || "").toLowerCase();
-  const doc = String(chunk?.doc_id || "").toLowerCase();
-  const title = String(chunk?.title || "").toLowerCase();
-  const text = `${section} ${doc} ${title}`;
-
-  const intentTerms = {
-    skills: ["skill", "tools", "stack", "sql", "python"],
-    experience: ["experience", "summary", "work", "years"],
-    projects: ["project"],
-    education: ["education", "college", "degree"],
-    contact: ["contact", "email", "linkedin", "github"],
-    general: [],
-  };
-  const terms = intentTerms[intent] || [];
-  return terms.some((term) => text.includes(term)) ? 2 : 0;
-}
-
-function scoreChunk(queryTokens, chunkText) {
-  const tokens = tokenize(chunkText);
-  if (!tokens.length || !queryTokens.length) return 0;
-  const counts = new Map();
-  for (const token of tokens) {
-    counts.set(token, (counts.get(token) || 0) + 1);
-  }
-  let score = 0;
-  for (const token of queryTokens) {
-    score += counts.get(token) || 0;
-  }
-  return score;
-}
-
-function searchIndex(index, question, topK = 3) {
-  const queryTokens = tokenize(question);
-  const intent = detectIntent(queryTokens);
-  return (Array.isArray(index) ? index : [])
-    .map((chunk) => ({
-      ...chunk,
-      score: scoreChunk(queryTokens, chunk.text || "") + intentBoost(chunk, intent),
-    }))
-    .filter((chunk) => chunk.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
-}
-
-function extractBestSentences(text, queryTokens, maxSentences = 2) {
-  const clean = String(text || "").replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
-  if (!sentences.length) return [];
-
-  const scored = sentences
-    .map((sentence) => {
-      const tokens = tokenize(sentence);
-      let score = 0;
-      for (const token of queryTokens) {
-        if (tokens.includes(token)) score += 1;
-      }
-      return { sentence, score };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const picked = scored.filter((item) => item.score > 0).slice(0, maxSentences);
-  if (picked.length) return picked.map((item) => item.sentence);
-  return sentences.slice(0, maxSentences);
-}
-
-function detectSkillEntity(question) {
-  const q = String(question || "").toLowerCase();
-  const known = ["sql", "python", "aws", "tableau", "power bi", "mongodb", "postgresql", "mysql"];
-  for (const item of known) {
-    if (q.includes(item)) return item;
-  }
-  return "";
-}
-
-function extractYearsValue(text) {
-  const normalized = String(text || "");
-  const match = normalized.match(/(\d+\+?)\s+years?/i);
-  return match ? match[1] : "";
-}
-
-function buildTailoredAnswer(results, question) {
-  const queryTokens = tokenize(question);
-  const intent = detectIntent(queryTokens);
-  const asksYears = queryTokens.includes("years") || queryTokens.includes("year");
-  const skillEntity = detectSkillEntity(question);
-  const top = results[0];
-  const second = results[1];
-
-  const lines = extractBestSentences(top?.text || "", queryTokens, 2);
-  if (lines.length < 2 && second?.text) {
-    const extra = extractBestSentences(second.text, queryTokens, 1);
-    if (extra.length) lines.push(extra[0]);
-  }
-  const concise = lines.join(" ").slice(0, 320).trim();
-  const yearsValue = extractYearsValue(`${top?.text || ""} ${second?.text || ""}`);
-
-  if (asksYears && skillEntity && yearsValue) {
-    const techLabel = skillEntity.toUpperCase() === "AWS" ? "AWS" : skillEntity.toUpperCase();
-    const evidence = concise || "my portfolio highlights applied experience across projects and workflows.";
-    return `I have about ${yearsValue} years of experience working with ${techLabel}. ${evidence}`.trim();
-  }
-
-  const prefixByIntent = {
-    skills: "Based on my profile,",
-    experience: "Based on my experience,",
-    projects: "Based on my projects,",
-    education: "From my education background,",
-    contact: "You can reach me via the details in my profile,",
-    general: "Here is what matches your question,",
-  };
-  const prefix = prefixByIntent[intent] || prefixByIntent.general;
-  return `${prefix} ${concise || "I could not extract a concise answer, but I found related information."}`.trim();
-}
+const CHATBOT_ANSWER_METHOD = String(import.meta.env.VITE_CHATBOT_ANSWER_METHOD || "").trim();
+const CHATBOT_ANSWER_METHOD_ALLOWED = new Set([
+  "hugging_face_lightweight_nlp",
+  "hugging_face",
+  "lightweight_nlp",
+]);
+const CHATBOT_RETRIEVAL_MODEL = String(import.meta.env.VITE_CHATBOT_RETRIEVAL_MODEL || "").trim();
+const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
+  "bm25",
+  "hashed_vector",
+  "bm25_hashed_vector",
+  "rule_lexicon_tfidf",
+]);
 
 async function queryBackendChat(question) {
   if (!CHATBOT_API_BASE) return null;
+  const payload = {
+    query: question,
+    corpus_id: CHATBOT_CORPUS_ID,
+    top_k: 3,
+    min_score: 0.0,
+    allow_fallback: CHATBOT_ALLOW_FALLBACK,
+  };
+  if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
+    payload.answer_method = CHATBOT_ANSWER_METHOD;
+  }
+  if (CHATBOT_RETRIEVAL_MODEL && CHATBOT_RETRIEVAL_MODEL_ALLOWED.has(CHATBOT_RETRIEVAL_MODEL)) {
+    payload.retrieval_model = CHATBOT_RETRIEVAL_MODEL;
+  }
   const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: question,
-      corpus_id: CHATBOT_CORPUS_ID,
-      top_k: 3,
-      min_score: 0.0,
-      allow_fallback: CHATBOT_ALLOW_FALLBACK,
-    }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     throw new Error(`Backend chat failed (${response.status})`);

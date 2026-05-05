@@ -40,4 +40,7 @@ artifacts/*
 
 # Chatbot generated corpora/index artifacts
 data/processed/
-data/index/
+data/index/*
+!data/index/default/
+!data/index/default/chunks.json
+!data/index/default/vector_index.json

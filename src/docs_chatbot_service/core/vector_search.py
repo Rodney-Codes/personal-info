@@ -3,16 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-
-TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
-
-
-def _tokenize(text: str) -> List[str]:
-    return [token.lower() for token in TOKEN_RE.findall(text)]
+from docs_chatbot_service.core.query_nlp import weighted_query_terms
+from docs_chatbot_service.core.text_util import tokenize as split_tokens
 
 
 def _char_ngrams(token: str, n: int = 3) -> List[str]:
@@ -41,7 +36,7 @@ class HashedVectorIndex:
             chunk_id = str(chunk.get("chunk_id", ""))
             text = str(chunk.get("text", ""))
             term_freq: Dict[int, float] = {}
-            for token in _tokenize(text):
+            for token in split_tokens(text):
                 for ngram in _char_ngrams(token, 3):
                     idx = _stable_hash(ngram, dim)
                     term_freq[idx] = term_freq.get(idx, 0.0) + 1.0
@@ -69,10 +64,10 @@ class HashedVectorIndex:
 
     def _query_vector(self, query: str) -> List[float]:
         tf: Dict[int, float] = {}
-        for token in _tokenize(query):
+        for token, weight in weighted_query_terms(query):
             for ngram in _char_ngrams(token, 3):
                 idx = _stable_hash(ngram, self.dim)
-                tf[idx] = tf.get(idx, 0.0) + 1.0
+                tf[idx] = tf.get(idx, 0.0) + weight
         dense = [0.0] * self.dim
         for idx, count in tf.items():
             dense[idx] += count * self.idf.get(idx, 0.0)

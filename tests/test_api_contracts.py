@@ -65,6 +65,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(payload["query"], "chatbot projects")
         self.assertEqual(payload["corpus_id"], "portfolio-v1")
         self.assertIn("total_results", payload)
+        self.assertEqual(payload["retrieval_model"], "bm25_hashed_vector")
         self.assertIsInstance(payload["results"], list)
         self.assertGreaterEqual(len(payload["results"]), 1)
 
@@ -116,6 +117,125 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("answer", payload)
         self.assertIn("source", payload)
         self.assertIn("used_hf", payload)
+        self.assertIn("method", payload)
+        self.assertEqual(payload["retrieval_model"], "bm25_hashed_vector")
+
+    def test_search_rule_lexicon_tfidf_model(self) -> None:
+        response = self.client.post(
+            "/search",
+            json={
+                "query": "python search",
+                "corpus_id": "portfolio-v1",
+                "top_k": 5,
+                "min_score": 0.0,
+                "retrieval_model": "rule_lexicon_tfidf",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["retrieval_model"], "rule_lexicon_tfidf")
+        self.assertGreaterEqual(len(payload["results"]), 1)
+
+    def test_search_invalid_retrieval_model_is_422(self) -> None:
+        response = self.client.post(
+            "/search",
+            json={"query": "python", "corpus_id": "portfolio-v1", "retrieval_model": "neural_bert"},
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_chat_lightweight_nlp_method(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "chatbot projects",
+                "corpus_id": "portfolio-v1",
+                "top_k": 3,
+                "min_score": 0.0,
+                "allow_fallback": True,
+                "answer_method": "lightweight_nlp",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["method"], "lightweight_nlp")
+        self.assertFalse(payload["used_hf"])
+        self.assertEqual(payload["retrieval_model"], "bm25_hashed_vector")
+        self.assertIn("chatbot", payload["answer"].lower())
+
+    def test_chat_with_rule_lexicon_tfidf_retrieval(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "python",
+                "corpus_id": "portfolio-v1",
+                "top_k": 3,
+                "min_score": 0.0,
+                "allow_fallback": True,
+                "answer_method": "lightweight_nlp",
+                "retrieval_model": "rule_lexicon_tfidf",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["retrieval_model"], "rule_lexicon_tfidf")
+        self.assertEqual(payload["method"], "lightweight_nlp")
+        self.assertIn("python", payload["answer"].lower())
+
+    def test_chat_hugging_face_method_smoke(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "python skills",
+                "corpus_id": "portfolio-v1",
+                "answer_method": "hugging_face",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn(payload["method"], ("hugging_face", "none"))
+        if payload["method"] == "hugging_face":
+            self.assertTrue(payload["used_hf"])
+            self.assertTrue(payload["answer"].strip())
+        else:
+            self.assertFalse(payload["used_hf"])
+        self.assertEqual(payload["retrieval_model"], "bm25_hashed_vector")
+
+    def test_chat_hugging_face_lightweight_nlp_method(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "python skills",
+                "corpus_id": "portfolio-v1",
+                "allow_fallback": True,
+                "answer_method": "hugging_face_lightweight_nlp",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn(payload["method"], ("hugging_face", "lightweight_nlp"))
+        self.assertEqual(payload["retrieval_model"], "bm25_hashed_vector")
+
+    def test_chat_invalid_answer_method_is_422(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "python",
+                "corpus_id": "portfolio-v1",
+                "answer_method": "not_a_real_method",
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+
+    def test_chat_invalid_retrieval_model_is_422(self) -> None:
+        response = self.client.post(
+            "/chat",
+            json={
+                "query": "python",
+                "corpus_id": "portfolio-v1",
+                "retrieval_model": "bert",
+            },
+        )
+        self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
+from docs_chatbot_service.core.rule_vector_retrieval import RuleVectorIndex
 from docs_chatbot_service.core.search import BM25SearchEngine
 from docs_chatbot_service.core.storage import CorpusStat, IndexStorage
 from docs_chatbot_service.core.vector_search import HashedVectorIndex, build_hybrid_score
+
+
+class RetrievalModel(str, Enum):
+    """Composable retrieval pipelines built from scoring functions."""
+
+    bm25 = "bm25"
+    hashed_vector = "hashed_vector"
+    bm25_hashed_vector = "bm25_hashed_vector"
+    rule_lexicon_tfidf = "rule_lexicon_tfidf"
 
 
 @dataclass(frozen=True)
@@ -17,6 +28,7 @@ class SearchParams:
     doc_ids: Optional[List[str]]
     top_k: int
     min_score: float
+    retrieval_model: RetrievalModel = RetrievalModel.bm25_hashed_vector
 
 
 class RetrievalService:
@@ -46,24 +58,49 @@ class RetrievalService:
             vector_index = HashedVectorIndex.load(self._storage.vector_index_path(corpus_id))
         return chunks, engine, vector_index
 
+    @lru_cache(maxsize=32)
+    def _rule_vector_index_for(self, corpus_id: str) -> RuleVectorIndex:
+        chunks = self._storage.load_chunks(corpus_id)
+        return RuleVectorIndex(chunks)
+
     def search(self, params: SearchParams) -> List[dict]:
         chunks, engine, vector_index = self._load_corpus(params.corpus_id)
         allowed_docs = set(params.doc_ids or [])
         has_filter = bool(params.doc_ids)
+        use_rule_vector = params.retrieval_model == RetrievalModel.rule_lexicon_tfidf
+        use_bm25 = params.retrieval_model in {
+            RetrievalModel.bm25,
+            RetrievalModel.bm25_hashed_vector,
+        }
+        use_hashed_vector = params.retrieval_model in {
+            RetrievalModel.hashed_vector,
+            RetrievalModel.bm25_hashed_vector,
+        }
+        rule_index = self._rule_vector_index_for(params.corpus_id) if use_rule_vector else None
 
         scored_results: List[dict] = []
         for chunk in chunks:
             if has_filter and chunk.get("doc_id") not in allowed_docs:
                 continue
-            bm25_score = engine.score(params.query, chunk)
-            vector_score = (
-                vector_index.score(params.query, chunk["chunk_id"]) if vector_index else 0.0
-            )
-            score = (
-                build_hybrid_score(bm25_score=bm25_score, vector_score=vector_score)
-                if vector_index
-                else bm25_score
-            )
+            if use_rule_vector:
+                score = rule_index.score(params.query, chunk)
+            else:
+                bm25_score = engine.score(params.query, chunk) if use_bm25 else 0.0
+                vector_score = (
+                    vector_index.score(params.query, chunk["chunk_id"])
+                    if (use_hashed_vector and vector_index)
+                    else 0.0
+                )
+                if use_bm25 and use_hashed_vector:
+                    score = (
+                        build_hybrid_score(bm25_score=bm25_score, vector_score=vector_score)
+                        if vector_index
+                        else bm25_score
+                    )
+                elif use_bm25:
+                    score = bm25_score
+                else:
+                    score = vector_score
             if score < params.min_score:
                 continue
 

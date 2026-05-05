@@ -4,6 +4,7 @@ import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loa
 import { NAV_ITEMS, PROJECT_ICONS, categoryIconForLabel } from './constants';
 import SkillChart from './components/SkillChart';
 import AiAssistant from './components/AiAssistant';
+import { buildTailoredAnswer, searchIndex } from '../../chatbotNlp.js';
 
 // Custom LinkedIn Icon with latest design
 const LinkedInIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
@@ -313,148 +314,44 @@ function githubUsernameFromContact(contact: any): string {
 
 const GITHUB_AVATAR_STORAGE_PREFIX = "pi_github_avatar:v1:";
 const GITHUB_AVATAR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-function tokenize(text: string): string[] {
-  return String(text || "").toLowerCase().match(/[a-z0-9]+/g) || [];
-}
 
 const CHATBOT_API_BASE = String((import.meta as any).env?.VITE_CHATBOT_API_BASE || "").trim();
 const CHATBOT_CORPUS_ID = String((import.meta as any).env?.VITE_CHATBOT_CORPUS_ID || "default").trim();
 const CHATBOT_ALLOW_FALLBACK =
   String((import.meta as any).env?.VITE_CHATBOT_ALLOW_FALLBACK || "true").trim().toLowerCase() !== "false";
-
-function detectIntent(queryTokens: string[]): "skills" | "experience" | "projects" | "education" | "contact" | "general" {
-  const has = (terms: string[]) => terms.some((term) => queryTokens.includes(term));
-  if (has(["sql", "python", "skills", "skill", "tools", "stack"])) return "skills";
-  if (has(["experience", "years", "worked", "background", "career"])) return "experience";
-  if (has(["project", "projects", "built", "build"])) return "projects";
-  if (has(["education", "degree", "college", "university"])) return "education";
-  if (has(["contact", "email", "linkedin", "github", "reach"])) return "contact";
-  return "general";
-}
-
-function intentBoost(chunk: any, intent: string): number {
-  const section = String(chunk?.section || "").toLowerCase();
-  const doc = String(chunk?.doc_id || "").toLowerCase();
-  const title = String(chunk?.title || "").toLowerCase();
-  const text = `${section} ${doc} ${title}`;
-  const intentTerms: Record<string, string[]> = {
-    skills: ["skill", "tools", "stack", "sql", "python"],
-    experience: ["experience", "summary", "work", "years"],
-    projects: ["project"],
-    education: ["education", "college", "degree"],
-    contact: ["contact", "email", "linkedin", "github"],
-    general: [],
-  };
-  const terms = intentTerms[intent] || [];
-  return terms.some((term) => text.includes(term)) ? 2 : 0;
-}
-
-function scoreChunk(queryTokens: string[], chunkText: string): number {
-  const tokens = tokenize(chunkText);
-  if (!tokens.length || !queryTokens.length) return 0;
-  const counts = new Map<string, number>();
-  for (const token of tokens) counts.set(token, (counts.get(token) || 0) + 1);
-  let score = 0;
-  for (const token of queryTokens) score += counts.get(token) || 0;
-  return score;
-}
-
-function searchIndex(index: any[], question: string, topK = 3): any[] {
-  const queryTokens = tokenize(question);
-  const intent = detectIntent(queryTokens);
-  return (Array.isArray(index) ? index : [])
-    .map((chunk) => ({
-      ...chunk,
-      score: scoreChunk(queryTokens, String(chunk?.text || "")) + intentBoost(chunk, intent),
-    }))
-    .filter((chunk) => chunk.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
-}
-
-function extractBestSentences(text: string, queryTokens: string[], maxSentences = 2): string[] {
-  const clean = String(text || "").replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-  const sentences = clean.split(/(?<=[.!?])\s+/).filter(Boolean);
-  if (!sentences.length) return [];
-
-  const scored = sentences
-    .map((sentence) => {
-      const tokens = tokenize(sentence);
-      let score = 0;
-      for (const token of queryTokens) {
-        if (tokens.includes(token)) score += 1;
-      }
-      return { sentence, score };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const picked = scored.filter((item) => item.score > 0).slice(0, maxSentences);
-  if (picked.length) return picked.map((item) => item.sentence);
-  return sentences.slice(0, maxSentences);
-}
-
-function detectSkillEntity(question: string): string {
-  const q = String(question || "").toLowerCase();
-  const known = ["sql", "python", "aws", "tableau", "power bi", "mongodb", "postgresql", "mysql"];
-  for (const item of known) {
-    if (q.includes(item)) return item;
-  }
-  return "";
-}
-
-function extractYearsValue(text: string): string {
-  const normalized = String(text || "");
-  const match = normalized.match(/(\d+\+?)\s+years?/i);
-  return match ? match[1] : "";
-}
-
-function buildTailoredAnswer(results: any[], question: string): string {
-  const queryTokens = tokenize(question);
-  const intent = detectIntent(queryTokens);
-  const asksYears = queryTokens.includes("years") || queryTokens.includes("year");
-  const skillEntity = detectSkillEntity(question);
-  const top = results[0];
-  const second = results[1];
-
-  const lines = extractBestSentences(String(top?.text || ""), queryTokens, 2);
-  if (lines.length < 2 && second?.text) {
-    const extra = extractBestSentences(String(second.text), queryTokens, 1);
-    if (extra.length) lines.push(extra[0]);
-  }
-  const concise = lines.join(" ").slice(0, 320).trim();
-  const yearsValue = extractYearsValue(`${top?.text || ""} ${second?.text || ""}`);
-
-  if (asksYears && skillEntity && yearsValue) {
-    const techLabel = skillEntity.toUpperCase() === "AWS" ? "AWS" : skillEntity.toUpperCase();
-    const evidence = concise || "my portfolio highlights applied experience across projects and workflows.";
-    return `I have about ${yearsValue} years of experience working with ${techLabel}. ${evidence}`.trim();
-  }
-
-  const prefixByIntent: Record<string, string> = {
-    skills: "Based on my profile,",
-    experience: "Based on my experience,",
-    projects: "Based on my projects,",
-    education: "From my education background,",
-    contact: "You can reach me via the details in my profile,",
-    general: "Here is what matches your question,",
-  };
-  const prefix = prefixByIntent[intent] || prefixByIntent.general;
-  return `${prefix} ${concise || "I could not extract a concise answer, but I found related information."}`.trim();
-}
+const CHATBOT_ANSWER_METHOD = String((import.meta as any).env?.VITE_CHATBOT_ANSWER_METHOD || "").trim();
+const CHATBOT_ANSWER_METHOD_ALLOWED = new Set([
+  "hugging_face_lightweight_nlp",
+  "hugging_face",
+  "lightweight_nlp",
+]);
+const CHATBOT_RETRIEVAL_MODEL = String((import.meta as any).env?.VITE_CHATBOT_RETRIEVAL_MODEL || "").trim();
+const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
+  "bm25",
+  "hashed_vector",
+  "bm25_hashed_vector",
+  "rule_lexicon_tfidf",
+]);
 
 async function queryBackendChat(question: string): Promise<any | null> {
   if (!CHATBOT_API_BASE) return null;
+  const payload: Record<string, unknown> = {
+    query: question,
+    corpus_id: CHATBOT_CORPUS_ID,
+    top_k: 3,
+    min_score: 0.0,
+    allow_fallback: CHATBOT_ALLOW_FALLBACK,
+  };
+  if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
+    payload.answer_method = CHATBOT_ANSWER_METHOD;
+  }
+  if (CHATBOT_RETRIEVAL_MODEL && CHATBOT_RETRIEVAL_MODEL_ALLOWED.has(CHATBOT_RETRIEVAL_MODEL)) {
+    payload.retrieval_model = CHATBOT_RETRIEVAL_MODEL;
+  }
   const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: question,
-      corpus_id: CHATBOT_CORPUS_ID,
-      top_k: 3,
-      min_score: 0.0,
-      allow_fallback: CHATBOT_ALLOW_FALLBACK,
-    }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     throw new Error(`Backend chat failed (${response.status})`);

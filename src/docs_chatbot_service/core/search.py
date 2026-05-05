@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 import math
-import re
 from collections import Counter, defaultdict
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
-
-TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
-
-
-def tokenize(text: str) -> List[str]:
-    return [token.lower() for token in TOKEN_RE.findall(text)]
+from docs_chatbot_service.core.query_nlp import weighted_query_terms
+from docs_chatbot_service.core.text_util import tokenize
 
 
 class BM25SearchEngine:
@@ -45,8 +40,8 @@ class BM25SearchEngine:
     def score(self, query: str, chunk: dict) -> float:
         k1 = 1.5
         b = 0.75
-        query_terms = tokenize(query)
-        if not query_terms:
+        weighted_terms: List[Tuple[str, float]] = weighted_query_terms(query)
+        if not weighted_terms:
             return 0.0
 
         chunk_id = chunk["chunk_id"]
@@ -57,11 +52,11 @@ class BM25SearchEngine:
 
         denom_const = k1 * (1 - b + b * (doc_len / max(self._avg_doc_len, 1e-9)))
         score = 0.0
-        for term in query_terms:
+        for term, weight in weighted_terms:
             tf = token_counts.get(term, 0)
             if tf == 0:
                 continue
             idf = self._idf.get(term, 0.0)
-            score += idf * ((tf * (k1 + 1)) / (tf + denom_const))
+            score += weight * (idf * ((tf * (k1 + 1)) / (tf + denom_const)))
         return float(score)
 
