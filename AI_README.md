@@ -8,6 +8,7 @@ This file is the single-source context for any AI agent working in this repo.
 - Purpose: return grounded snippets from owned documents at near-zero ongoing cost.
 - Primary production mode: static index search in the portfolio frontend (GitHub Pages compatible).
 - Optional mode: backend API (`/search`) for non-static deployments.
+- Production chatbot endpoint is provided via `VITE_CHATBOT_API_BASE` during the Pages build workflow.
 
 ## 2) Architecture snapshot
 

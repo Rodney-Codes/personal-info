@@ -2,6 +2,8 @@
 
 Personal content and tooling: **versioned resume/portfolio content**, **template-driven PDF resume** build, and a **Vite portfolio** site (localhost + static deploy).
 
+Deployment note: chatbot API base for production is injected at build time from GitHub Actions variable `VITE_CHATBOT_API_BASE`.
+
 ## Repository layout
 
 | Path | Purpose |
