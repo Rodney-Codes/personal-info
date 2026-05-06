@@ -55,3 +55,49 @@ And records it in runtime metadata:
     - `chunks_url` / `vector_index_url` in request payloads.
 - Re-run `npm run sync` whenever active workflow content changes.
 
+## Q&A logging and feedback (continuous improvement loop)
+
+The backend persists every chat exchange to Supabase Postgres so we can
+analyze quality over time and continuously improve retrieval. There is no LLM
+fine-tuning in this loop - it is retrieval-improvement only.
+
+### Storage
+
+- Primary DB: Supabase Postgres (configured via `SUPABASE_DB_URL`).
+- Logging can be disabled with `CHAT_LOG_ENABLED=false`.
+- Tables:
+  - `chat_events` (id, event_id, session_id, corpus_id, category, bucket,
+    query, answer, source, method, retrieval_model, used_hf, top_k, min_score,
+    allow_fallback, latency_ms, info, created_at, updated_at).
+  - `chat_feedback` (id, event_id, session_id, category, bucket, rating,
+    comment, info, created_at, updated_at).
+
+### API
+
+- `POST /chat` now returns `event_id` and `session_id` so the UI can submit
+  feedback for a specific exchange.
+- `POST /chat/feedback` accepts `{ event_id, rating (-1|0|1), comment?,
+  session_id? }`. Returns `404` if the `event_id` is unknown.
+- The frontend AMA widget renders `Helpful` / `Not helpful` buttons under
+  every assistant message (when the backend API is configured).
+
+### Offline analysis
+
+- `python -m scripts.analyze_chat_logs --db-url "$SUPABASE_DB_URL"`
+  emits a JSON report under `data/chat_reports/` covering bucket distribution,
+  failed/low-confidence queries, retrieval-model quality by feedback, and
+  rule-driven tuning suggestions.
+- `python -m scripts.eval_retrieval --eval data/eval/retrieval_eval.json
+  --index-root data/index` runs the offline retrieval eval set and reports
+  hit@k / MRR per retrieval model. Use `--gate-hit-at-k` and `--gate-mrr` to
+  enforce a quality gate (exit code 3 on failure).
+
+### Scheduled workflow
+
+- `.github/workflows/chatbot-improvement.yml` runs weekly (and on demand) in
+  report-only mode. It executes the eval harness on the committed corpus,
+  analyzes chat logs from Supabase when `SUPABASE_DB_URL` is configured as a
+  GitHub Actions secret, and uploads JSON reports as a
+  `chatbot-improvement-reports` artifact for review. No retrieval config is
+  changed automatically.
+

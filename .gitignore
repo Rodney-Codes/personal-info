@@ -44,3 +44,7 @@ data/index/*
 !data/index/default/
 !data/index/default/chunks.json
 !data/index/default/vector_index.json
+
+# Chatbot offline report artifacts
+data/chat_logs/
+data/chat_reports/

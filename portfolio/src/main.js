@@ -506,7 +506,26 @@ const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
   "rule_lexicon_tfidf",
 ]);
 
-async function queryBackendChat(question) {
+const AMA_SESSION_STORAGE_KEY = "pi_ama_session_id:v1";
+
+function getOrCreateSessionId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  try {
+    const existing = window.sessionStorage.getItem(AMA_SESSION_STORAGE_KEY);
+    if (existing && existing.trim()) {
+      return existing.trim();
+    }
+    const fresh = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    window.sessionStorage.setItem(AMA_SESSION_STORAGE_KEY, fresh);
+    return fresh;
+  } catch (_error) {
+    return `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+async function queryBackendChat(question, sessionId) {
   if (!CHATBOT_API_BASE) return null;
   const payload = {
     query: question,
@@ -515,6 +534,9 @@ async function queryBackendChat(question) {
     min_score: 0.0,
     allow_fallback: CHATBOT_ALLOW_FALLBACK,
   };
+  if (sessionId) {
+    payload.session_id = sessionId;
+  }
   if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
     payload.answer_method = CHATBOT_ANSWER_METHOD;
   }
@@ -530,6 +552,33 @@ async function queryBackendChat(question) {
     throw new Error(`Backend chat failed (${response.status})`);
   }
   return response.json();
+}
+
+async function submitChatFeedback({ eventId, sessionId, rating, comment }) {
+  if (!CHATBOT_API_BASE || !eventId) {
+    return { accepted: false };
+  }
+  const payload = {
+    event_id: eventId,
+    rating,
+    comment: comment || "",
+  };
+  if (sessionId) {
+    payload.session_id = sessionId;
+  }
+  try {
+    const response = await fetch(`${CHATBOT_API_BASE}/chat/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      return { accepted: false };
+    }
+    return await response.json();
+  } catch (_error) {
+    return { accepted: false };
+  }
 }
 
 async function loadChatbotIndex(chatbotIndexFile) {
@@ -585,11 +634,22 @@ function mountAmaWidget(runtime) {
   const form = host.querySelector(".ama-input-row");
   const input = form.querySelector('input[name="question"]');
   const messages = host.querySelector(".ama-messages");
+  const sessionId = getOrCreateSessionId();
 
-  const appendMessage = (text, role) => {
+  const appendMessage = (text, role, options = {}) => {
     const node = document.createElement("div");
     node.className = `ama-msg ${role === "user" ? "ama-msg-user" : "ama-msg-assistant"}`;
-    node.textContent = text;
+    const textNode = document.createElement("div");
+    textNode.className = "ama-msg-text";
+    textNode.textContent = text;
+    node.appendChild(textNode);
+    if (role === "assistant" && options.eventId && CHATBOT_API_BASE) {
+      const feedback = buildFeedbackControls({
+        eventId: options.eventId,
+        sessionId,
+      });
+      node.appendChild(feedback);
+    }
     messages.appendChild(node);
     messages.scrollTop = messages.scrollHeight;
   };
@@ -634,16 +694,21 @@ function mountAmaWidget(runtime) {
       } else {
         const top = results[0];
         let answer = "";
+        let backendEventId = "";
         try {
-          const backend = await queryBackendChat(question);
+          const backend = await queryBackendChat(question, sessionId);
           if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
             answer = backend.answer.trim();
           }
+          if (backend && typeof backend.event_id === "string") {
+            backendEventId = backend.event_id;
+          }
         } catch (_error) {
           answer = "";
+          backendEventId = "";
         }
         const fallback = buildTailoredAnswer(results, question);
-        appendMessage(`${answer || fallback}`, "assistant");
+        appendMessage(`${answer || fallback}`, "assistant", { eventId: backendEventId });
       }
     } catch (error) {
       appendMessage("Search index is unavailable right now. Please try again shortly.", "assistant");
@@ -655,6 +720,49 @@ function mountAmaWidget(runtime) {
   });
 
   document.body.appendChild(host);
+}
+
+function buildFeedbackControls({ eventId, sessionId }) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "ama-feedback";
+  wrapper.setAttribute("role", "group");
+  wrapper.setAttribute("aria-label", "Was this answer helpful?");
+
+  const status = document.createElement("span");
+  status.className = "ama-feedback-status";
+  status.setAttribute("aria-live", "polite");
+
+  const sendRating = async (rating, button) => {
+    const buttons = wrapper.querySelectorAll("button.ama-feedback-btn");
+    for (const b of buttons) {
+      b.disabled = true;
+    }
+    button.classList.add("is-active");
+    status.textContent = "Thanks for the feedback.";
+    const result = await submitChatFeedback({ eventId, sessionId, rating });
+    if (!result?.accepted) {
+      status.textContent = "Could not record feedback.";
+    }
+  };
+
+  const upBtn = document.createElement("button");
+  upBtn.type = "button";
+  upBtn.className = "ama-feedback-btn ama-feedback-up";
+  upBtn.setAttribute("aria-label", "Helpful answer");
+  upBtn.textContent = "Helpful";
+  upBtn.addEventListener("click", () => sendRating(1, upBtn));
+
+  const downBtn = document.createElement("button");
+  downBtn.type = "button";
+  downBtn.className = "ama-feedback-btn ama-feedback-down";
+  downBtn.setAttribute("aria-label", "Not helpful answer");
+  downBtn.textContent = "Not helpful";
+  downBtn.addEventListener("click", () => sendRating(-1, downBtn));
+
+  wrapper.appendChild(upBtn);
+  wrapper.appendChild(downBtn);
+  wrapper.appendChild(status);
+  return wrapper;
 }
 
 async function main() {

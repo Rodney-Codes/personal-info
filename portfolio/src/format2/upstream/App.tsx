@@ -333,7 +333,26 @@ const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
   "rule_lexicon_tfidf",
 ]);
 
-async function queryBackendChat(question: string): Promise<any | null> {
+const AMA_SESSION_STORAGE_KEY = "pi_ama_session_id:v1";
+
+function getOrCreateAmaSessionId(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  try {
+    const existing = window.sessionStorage.getItem(AMA_SESSION_STORAGE_KEY);
+    if (existing && existing.trim()) {
+      return existing.trim();
+    }
+    const fresh = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    window.sessionStorage.setItem(AMA_SESSION_STORAGE_KEY, fresh);
+    return fresh;
+  } catch (_error) {
+    return `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+async function queryBackendChat(question: string, sessionId: string): Promise<any | null> {
   if (!CHATBOT_API_BASE) return null;
   const payload: Record<string, unknown> = {
     query: question,
@@ -342,6 +361,9 @@ async function queryBackendChat(question: string): Promise<any | null> {
     min_score: 0.0,
     allow_fallback: CHATBOT_ALLOW_FALLBACK,
   };
+  if (sessionId) {
+    payload.session_id = sessionId;
+  }
   if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
     payload.answer_method = CHATBOT_ANSWER_METHOD;
   }
@@ -357,6 +379,39 @@ async function queryBackendChat(question: string): Promise<any | null> {
     throw new Error(`Backend chat failed (${response.status})`);
   }
   return response.json();
+}
+
+async function submitAmaFeedback(args: {
+  eventId: string;
+  sessionId: string;
+  rating: number;
+  comment?: string;
+}): Promise<{ accepted: boolean }> {
+  if (!CHATBOT_API_BASE || !args.eventId) {
+    return { accepted: false };
+  }
+  const payload: Record<string, unknown> = {
+    event_id: args.eventId,
+    rating: args.rating,
+    comment: args.comment || "",
+  };
+  if (args.sessionId) {
+    payload.session_id = args.sessionId;
+  }
+  try {
+    const response = await fetch(`${CHATBOT_API_BASE}/chat/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      return { accepted: false };
+    }
+    const body = await response.json();
+    return { accepted: Boolean(body?.accepted) };
+  } catch (_error) {
+    return { accepted: false };
+  }
 }
 
 type GithubAvatarCache = { url: string; savedAt: number };
@@ -395,14 +450,84 @@ function stripUrlQueryForCompare(href: string): string {
   }
 }
 
+type AmaMessage = {
+  role: "assistant" | "user";
+  text: string;
+  eventId?: string;
+  feedback?: "up" | "down" | null;
+};
+
+const AmaFeedbackButtons: React.FC<{
+  eventId: string;
+  sessionId: string;
+  current: "up" | "down" | null | undefined;
+  onSubmit: (rating: 1 | -1) => void;
+}> = ({ eventId, sessionId, current, onSubmit }) => {
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  if (!CHATBOT_API_BASE || !eventId) {
+    return null;
+  }
+  const handleClick = async (rating: 1 | -1) => {
+    if (busy || current) return;
+    setBusy(true);
+    setStatus("Sending feedback...");
+    onSubmit(rating);
+    const result = await submitAmaFeedback({ eventId, sessionId, rating });
+    setStatus(result.accepted ? "Thanks for the feedback." : "Could not record feedback.");
+    setBusy(false);
+  };
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Was this answer helpful?">
+      <button
+        type="button"
+        onClick={() => handleClick(1)}
+        disabled={busy || Boolean(current)}
+        className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+          current === "up"
+            ? "border-emerald-500 bg-emerald-700 text-emerald-50"
+            : "border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+        }`}
+        aria-label="Helpful answer"
+      >
+        Helpful
+      </button>
+      <button
+        type="button"
+        onClick={() => handleClick(-1)}
+        disabled={busy || Boolean(current)}
+        className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
+          current === "down"
+            ? "border-rose-500 bg-rose-700 text-rose-50"
+            : "border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+        }`}
+        aria-label="Not helpful answer"
+      >
+        Not helpful
+      </button>
+      {status ? <span className="text-slate-400">{status}</span> : null}
+    </div>
+  );
+};
+
 const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile }) => {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const indexRef = useRef<any[] | null>(null);
-  const [messages, setMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([
+  const sessionIdRef = useRef<string>("");
+  if (!sessionIdRef.current) {
+    sessionIdRef.current = getOrCreateAmaSessionId();
+  }
+  const [messages, setMessages] = useState<AmaMessage[]>([
     { role: "assistant", text: "Hi, feel free to ask me anything that you would want to know about me" },
   ]);
+
+  const recordLocalFeedback = (eventId: string, value: "up" | "down") => {
+    setMessages((prev) =>
+      prev.map((m) => (m.eventId === eventId ? { ...m, feedback: value } : m)),
+    );
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -435,18 +560,28 @@ const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile })
       } else {
         const top = results[0];
         let answer = "";
+        let backendEventId = "";
         try {
-          const backend = await queryBackendChat(question);
+          const backend = await queryBackendChat(question, sessionIdRef.current);
           if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
             answer = backend.answer.trim();
           }
+          if (backend && typeof backend.event_id === "string") {
+            backendEventId = backend.event_id;
+          }
         } catch (_error) {
           answer = "";
+          backendEventId = "";
         }
         const tailored = buildTailoredAnswer(results, question);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: `${answer || tailored}` },
+          {
+            role: "assistant",
+            text: `${answer || tailored}`,
+            eventId: backendEventId || undefined,
+            feedback: null,
+          },
         ]);
       }
     } catch (error) {
@@ -485,7 +620,17 @@ const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile })
                     : "max-w-[94%] border border-slate-700 bg-slate-800 text-slate-200"
                 }`}
               >
-                {message.text}
+                <div className="whitespace-pre-wrap">{message.text}</div>
+                {message.role === "assistant" && message.eventId ? (
+                  <AmaFeedbackButtons
+                    eventId={message.eventId}
+                    sessionId={sessionIdRef.current}
+                    current={message.feedback ?? null}
+                    onSubmit={(rating) =>
+                      recordLocalFeedback(message.eventId as string, rating > 0 ? "up" : "down")
+                    }
+                  />
+                ) : null}
               </div>
             ))}
           </div>

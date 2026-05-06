@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import time
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -12,6 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+from docs_chatbot_service.core.chat_log_store import (
+    ChatEventRecord,
+    ChatFeedbackRecord,
+    ChatLogStore,
+    get_store,
+)
 from docs_chatbot_service.core.query_nlp import (
     analyze_query,
     detect_intent_from_signals,
@@ -20,6 +28,8 @@ from docs_chatbot_service.core.query_nlp import (
 )
 from docs_chatbot_service.core.service import RetrievalModel, RetrievalService, SearchParams
 from docs_chatbot_service.core.text_util import tokenize
+
+LOGGER = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -117,6 +127,11 @@ class ChatRequest(BaseModel):
             "(retrieval scoring pipeline)"
         ),
     )
+    session_id: Optional[str] = Field(
+        default=None,
+        max_length=128,
+        description="Stable client-supplied session identifier for grouping chat events.",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -136,6 +151,33 @@ class ChatResponse(BaseModel):
             "(which retrieval scorer was used)"
         ),
     )
+    event_id: str = Field(
+        default="",
+        description="Stable identifier for this chat exchange. Used to attach feedback later.",
+    )
+    session_id: str = Field(
+        default="",
+        description="Echoed-back session identifier (server-generated if not supplied).",
+    )
+
+
+class ChatFeedbackRequest(BaseModel):
+    event_id: str = Field(..., min_length=1, max_length=128)
+    rating: int = Field(
+        ...,
+        ge=-1,
+        le=1,
+        description="-1 (negative), 0 (neutral/correction-only), or 1 (positive)",
+    )
+    comment: Optional[str] = Field(default="", max_length=2000)
+    session_id: Optional[str] = Field(default=None, max_length=128)
+
+
+class ChatFeedbackResponse(BaseModel):
+    event_id: str
+    accepted: bool
+    rating: int
+    bucket: str
 
 
 NO_ANSWER_MESSAGE = (
@@ -395,8 +437,70 @@ def search(request: SearchRequest) -> SearchResponse:
     )
 
 
+def _resolve_session_id(supplied: Optional[str]) -> str:
+    candidate = (supplied or "").strip()
+    if candidate:
+        return candidate[:128]
+    return f"anon-{ChatLogStore.new_event_id()}"
+
+
+def _bucket_for_method(method: str, results_count: int) -> str:
+    if results_count == 0:
+        return "no_results"
+    if method == "hugging_face":
+        return "hf"
+    if method == "lightweight_nlp":
+        return "nlp"
+    return "none"
+
+
+def _build_event_info(
+    request_body: ChatRequest,
+    results: List[dict],
+) -> dict:
+    top_results_summary = [
+        {
+            "chunk_id": str(r.get("chunk_id", "")),
+            "doc_id": str(r.get("doc_id", "")),
+            "title": str(r.get("title", "")),
+            "section": str(r.get("section", "general")),
+            "score": float(r.get("score", 0.0) or 0.0),
+        }
+        for r in results[: max(1, request_body.top_k)]
+    ]
+    scores = [item["score"] for item in top_results_summary]
+    return {
+        "doc_ids": list(request_body.doc_ids or []),
+        "answer_method_requested": (
+            request_body.answer_method.value
+            if request_body.answer_method is not None
+            else None
+        ),
+        "top_results": top_results_summary,
+        "score_stats": {
+            "max": max(scores) if scores else 0.0,
+            "min": min(scores) if scores else 0.0,
+            "mean": (sum(scores) / len(scores)) if scores else 0.0,
+            "count": len(scores),
+        },
+    }
+
+
+def _log_chat_event_safe(record: ChatEventRecord) -> None:
+    """Persist a chat event without ever raising into the request path."""
+
+    store = get_store()
+    if store is None:
+        return
+    try:
+        store.insert_event(record)
+    except Exception:  # pragma: no cover - defensive safety net
+        LOGGER.exception("Failed to persist chat event %s", record.event_id)
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(request_body: ChatRequest) -> ChatResponse:
+    started_at = time.perf_counter()
     allow_fallback = _resolve_allow_fallback(request_body)
     method_requested = (
         request_body.answer_method or ChatAnswerMethod.hugging_face_lightweight_nlp
@@ -406,6 +510,10 @@ def chat(request_body: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=404, detail=f"Corpus not found: {request_body.corpus_id}"
         )
+
+    session_id = _resolve_session_id(request_body.session_id)
+    event_id = ChatLogStore.new_event_id()
+
     results = service.search(
         SearchParams(
             query=request_body.query,
@@ -417,18 +525,42 @@ def chat(request_body: ChatRequest) -> ChatResponse:
         )
     )
     if not results:
+        answer_text = (
+            NO_ANSWER_MESSAGE
+            if not allow_fallback
+            else "I could not find a grounded answer in the current portfolio documents."
+        )
+        elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+        _log_chat_event_safe(
+            ChatEventRecord(
+                event_id=event_id,
+                session_id=session_id,
+                corpus_id=request_body.corpus_id,
+                query=request_body.query,
+                answer=answer_text,
+                source="",
+                method="none",
+                retrieval_model=rm.value,
+                used_hf=False,
+                top_k=request_body.top_k,
+                min_score=float(request_body.min_score),
+                allow_fallback=allow_fallback,
+                latency_ms=elapsed_ms,
+                category="chat",
+                bucket=_bucket_for_method("none", 0),
+                info=_build_event_info(request_body, []),
+            )
+        )
         return ChatResponse(
             query=request_body.query,
             corpus_id=request_body.corpus_id,
-            answer=(
-                NO_ANSWER_MESSAGE
-                if not allow_fallback
-                else "I could not find a grounded answer in the current portfolio documents."
-            ),
+            answer=answer_text,
             source="",
             used_hf=False,
             method="none",
             retrieval_model=rm.value,
+            event_id=event_id,
+            session_id=session_id,
         )
 
     answer, source, used_hf, method = _chat_answer_from_results(
@@ -436,6 +568,27 @@ def chat(request_body: ChatRequest) -> ChatResponse:
         results,
         method_requested,
         allow_fallback,
+    )
+    elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+    _log_chat_event_safe(
+        ChatEventRecord(
+            event_id=event_id,
+            session_id=session_id,
+            corpus_id=request_body.corpus_id,
+            query=request_body.query,
+            answer=answer,
+            source=source,
+            method=method,
+            retrieval_model=rm.value,
+            used_hf=used_hf,
+            top_k=request_body.top_k,
+            min_score=float(request_body.min_score),
+            allow_fallback=allow_fallback,
+            latency_ms=elapsed_ms,
+            category="chat",
+            bucket=_bucket_for_method(method, len(results)),
+            info=_build_event_info(request_body, results),
+        )
     )
     return ChatResponse(
         query=request_body.query,
@@ -445,6 +598,57 @@ def chat(request_body: ChatRequest) -> ChatResponse:
         used_hf=used_hf,
         method=method,
         retrieval_model=rm.value,
+        event_id=event_id,
+        session_id=session_id,
+    )
+
+
+@app.post("/chat/feedback", response_model=ChatFeedbackResponse)
+def chat_feedback(request_body: ChatFeedbackRequest) -> ChatFeedbackResponse:
+    store = get_store()
+    if store is None:
+        # Logging disabled by env; report acceptance so the UI can stay simple.
+        return ChatFeedbackResponse(
+            event_id=request_body.event_id,
+            accepted=False,
+            rating=request_body.rating,
+            bucket="disabled",
+        )
+
+    if not store.event_exists(request_body.event_id):
+        raise HTTPException(status_code=404, detail="event_id not found")
+
+    if request_body.rating > 0:
+        bucket = "positive"
+    elif request_body.rating < 0:
+        bucket = "negative"
+    else:
+        bucket = "neutral"
+
+    record = ChatFeedbackRecord(
+        event_id=request_body.event_id,
+        session_id=(request_body.session_id or "")[:128],
+        rating=int(request_body.rating),
+        comment=(request_body.comment or "").strip(),
+        category="feedback",
+        bucket=bucket,
+        info={
+            "comment_length": len(request_body.comment or ""),
+            "has_correction": bool((request_body.comment or "").strip()),
+        },
+    )
+    try:
+        store.insert_feedback(record)
+        accepted = True
+    except Exception:  # pragma: no cover - defensive safety net
+        LOGGER.exception("Failed to persist chat feedback for %s", request_body.event_id)
+        accepted = False
+
+    return ChatFeedbackResponse(
+        event_id=request_body.event_id,
+        accepted=accepted,
+        rating=int(request_body.rating),
+        bucket=bucket,
     )
 
 

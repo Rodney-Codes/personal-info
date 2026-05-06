@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "description": "Retrieval evaluation set for the docs chatbot service. Each example provides a query and one or more expected_doc_ids / expected_chunk_ids that should appear in the top-k retrieval results. Keep this file under version control. Add high-quality positive examples surfaced by analyze_chat_logs.py over time.",
+    "version": 1,
+    "default_corpus_id": "default",
+    "default_top_k": 3
+  },
+  "examples": [
+    {
+      "id": "etl-pipelines",
+      "query": "Tell me about your ETL pipelines and dashboards",
+      "expected_doc_ids": ["portfolio-2", "resume-1"]
+    },
+    {
+      "id": "python-sql-skills",
+      "query": "What is your Python and SQL experience?",
+      "expected_doc_ids": ["resume-1"]
+    },
+    {
+      "id": "metabase-optimization",
+      "query": "How did you optimize Metabase dashboards?",
+      "expected_doc_ids": ["portfolio-2"]
+    },
+    {
+      "id": "professional-summary",
+      "query": "Give me your professional summary",
+      "expected_doc_ids": ["resume-1"]
+    },
+    {
+      "id": "tableau-dashboards",
+      "query": "What Tableau dashboards have you built?",
+      "expected_doc_ids": ["resume-1"]
+    },
+    {
+      "id": "impact-metrics",
+      "query": "Share your impact metrics",
+      "expected_doc_ids": ["portfolio-2"]
+    }
+  ]
+}
