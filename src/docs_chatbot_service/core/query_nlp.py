@@ -129,10 +129,21 @@ SYNONYMS: Dict[str, Tuple[str, ...]] = {
     "analyst": ("analysis", "data", "sql"),
     "engineer": ("engineering", "data", "software"),
     "engineering": ("engineer", "data", "systems"),
+    "bi": ("business", "intelligence", "dashboard", "reporting"),
+    "dashboards": ("metabase", "tableau", "visualization", "reporting"),
+    "consulting": ("client", "projects", "analytics"),
+    "edtech": ("education", "learning", "training"),
+    "pharma": ("healthcare", "oncology", "zs"),
+    "job": ("role", "work", "position"),
+    "currently": ("present", "now", "today"),
+    "employer": ("company", "organization", "work"),
+    "message": ("contact", "email", "reach"),
+    "availability": ("open", "contact", "roles"),
 }
 
 # Multi-word phrases in the raw query map to ordered bigrams for evidence matching.
 PHRASE_BIGRAM_SOURCES: Tuple[str, ...] = (
+    "google analytics",
     "power bi",
     "machine learning",
     "data science",
@@ -140,10 +151,16 @@ PHRASE_BIGRAM_SOURCES: Tuple[str, ...] = (
     "business intelligence",
     "deep learning",
     "large language",
+    "zs associates",
+    "masai school",
+    "metabase",
+    "clickhouse",
 )
 
 # Multi-token skills / entities (longest first for substring detection).
 SKILL_PHRASES: Tuple[str, ...] = (
+    "google analytics",
+    "business intelligence",
     "power bi",
     "machine learning",
     "data engineering",
@@ -153,6 +170,11 @@ SKILL_PHRASES: Tuple[str, ...] = (
     "mongodb",
     "mysql",
     "tableau",
+    "metabase",
+    "redash",
+    "clickhouse",
+    "masai school",
+    "masai",
     "fastapi",
     "kubernetes",
     "terraform",

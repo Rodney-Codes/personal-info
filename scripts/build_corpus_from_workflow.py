@@ -39,6 +39,7 @@ def main() -> None:
         repo_root / "content" / "resumes" / f"{resume_id}.md",
         repo_root / "content" / "portfolios" / f"{portfolio_id}.md",
     ]
+    faq_path = repo_root / "content" / "chatbot_faq.md"
     missing = [str(path) for path in source_files if not path.exists()]
     if missing:
         raise FileNotFoundError(
@@ -49,6 +50,8 @@ def main() -> None:
         tmp_raw = Path(tmp_dir)
         for src in source_files:
             (tmp_raw / src.name).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        if faq_path.exists():
+            (tmp_raw / faq_path.name).write_text(faq_path.read_text(encoding="utf-8"), encoding="utf-8")
 
         run(
             [

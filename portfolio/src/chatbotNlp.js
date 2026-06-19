@@ -115,9 +115,20 @@ const SYNONYMS = {
   analyst: ["analysis", "data", "sql"],
   engineer: ["engineering", "data", "software"],
   engineering: ["engineer", "data", "systems"],
+  bi: ["business", "intelligence", "dashboard", "reporting"],
+  dashboards: ["metabase", "tableau", "visualization", "reporting"],
+  consulting: ["client", "projects", "analytics"],
+  edtech: ["education", "learning", "training"],
+  pharma: ["healthcare", "oncology", "zs"],
+  job: ["role", "work", "position"],
+  currently: ["present", "now", "today"],
+  employer: ["company", "organization", "work"],
+  message: ["contact", "email", "reach"],
+  availability: ["open", "contact", "roles"],
 };
 
 const PHRASE_BIGRAM_SOURCES = [
+  "google analytics",
   "power bi",
   "machine learning",
   "data science",
@@ -125,9 +136,15 @@ const PHRASE_BIGRAM_SOURCES = [
   "business intelligence",
   "deep learning",
   "large language",
+  "zs associates",
+  "masai school",
+  "metabase",
+  "clickhouse",
 ];
 
 const SKILL_PHRASES = [
+  "google analytics",
+  "business intelligence",
   "power bi",
   "machine learning",
   "data engineering",
@@ -137,6 +154,11 @@ const SKILL_PHRASES = [
   "mongodb",
   "mysql",
   "tableau",
+  "metabase",
+  "redash",
+  "clickhouse",
+  "masai school",
+  "masai",
   "fastapi",
   "kubernetes",
   "terraform",

@@ -3,7 +3,6 @@
  */
 
 import { profileHandleFromUrl } from "./lib/profileHandleFromUrl.js";
-import { buildTailoredAnswer, searchIndex } from "./chatbotNlp.js";
 
 function inlineBold(s) {
   return s
@@ -105,15 +104,10 @@ async function loadData() {
     runtime.selected && typeof runtime.selected === "object"
       ? runtime.selected
       : null;
-  const chatbotIndexFile =
-    runtime?.chatbot_index_file && typeof runtime.chatbot_index_file === "string"
-      ? runtime.chatbot_index_file
-      : "chatbot/index.default.json";
   return {
     data,
     runtime: {
       pdfFile,
-      chatbotIndexFile,
       profileId: runtime.profile_id,
       selected,
     },
@@ -489,282 +483,6 @@ function activateFormat2Interactions() {
   }
 }
 
-const CHATBOT_API_BASE = String(import.meta.env.VITE_CHATBOT_API_BASE || "").trim();
-const CHATBOT_CORPUS_ID = String(import.meta.env.VITE_CHATBOT_CORPUS_ID || "default").trim();
-const CHATBOT_ALLOW_FALLBACK = String(import.meta.env.VITE_CHATBOT_ALLOW_FALLBACK || "true").trim().toLowerCase() !== "false";
-const CHATBOT_ANSWER_METHOD = String(import.meta.env.VITE_CHATBOT_ANSWER_METHOD || "").trim();
-const CHATBOT_ANSWER_METHOD_ALLOWED = new Set([
-  "hugging_face_lightweight_nlp",
-  "hugging_face",
-  "lightweight_nlp",
-]);
-const CHATBOT_RETRIEVAL_MODEL = String(import.meta.env.VITE_CHATBOT_RETRIEVAL_MODEL || "").trim();
-const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
-  "bm25",
-  "hashed_vector",
-  "bm25_hashed_vector",
-  "rule_lexicon_tfidf",
-]);
-
-const AMA_SESSION_STORAGE_KEY = "pi_ama_session_id:v1";
-
-function getOrCreateSessionId() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  try {
-    const existing = window.sessionStorage.getItem(AMA_SESSION_STORAGE_KEY);
-    if (existing && existing.trim()) {
-      return existing.trim();
-    }
-    const fresh = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    window.sessionStorage.setItem(AMA_SESSION_STORAGE_KEY, fresh);
-    return fresh;
-  } catch (_error) {
-    return `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  }
-}
-
-async function queryBackendChat(question, sessionId) {
-  if (!CHATBOT_API_BASE) return null;
-  const payload = {
-    query: question,
-    corpus_id: CHATBOT_CORPUS_ID,
-    top_k: 3,
-    min_score: 0.0,
-    allow_fallback: CHATBOT_ALLOW_FALLBACK,
-  };
-  if (sessionId) {
-    payload.session_id = sessionId;
-  }
-  if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
-    payload.answer_method = CHATBOT_ANSWER_METHOD;
-  }
-  if (CHATBOT_RETRIEVAL_MODEL && CHATBOT_RETRIEVAL_MODEL_ALLOWED.has(CHATBOT_RETRIEVAL_MODEL)) {
-    payload.retrieval_model = CHATBOT_RETRIEVAL_MODEL;
-  }
-  const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`Backend chat failed (${response.status})`);
-  }
-  return response.json();
-}
-
-async function submitChatFeedback({ eventId, sessionId, rating, comment }) {
-  if (!CHATBOT_API_BASE || !eventId) {
-    return { accepted: false };
-  }
-  const payload = {
-    event_id: eventId,
-    rating,
-    comment: comment || "",
-  };
-  if (sessionId) {
-    payload.session_id = sessionId;
-  }
-  try {
-    const response = await fetch(`${CHATBOT_API_BASE}/chat/feedback`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      return { accepted: false };
-    }
-    return await response.json();
-  } catch (_error) {
-    return { accepted: false };
-  }
-}
-
-async function loadChatbotIndex(chatbotIndexFile) {
-  const base = import.meta.env.BASE_URL || "/";
-  const bustParam = import.meta.env.VITE_SITE_DATA_BUST
-    ? `?v=${encodeURIComponent(String(import.meta.env.VITE_SITE_DATA_BUST))}`
-    : "";
-  const indexUrl = `${base}${chatbotIndexFile}${bustParam}`;
-  const response = await fetch(indexUrl, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Could not load ${chatbotIndexFile} (${response.status})`);
-  }
-  return response.json();
-}
-
-function mountAmaWidget(runtime) {
-  const existing = document.getElementById("ama-widget");
-  if (existing) {
-    return;
-  }
-  let indexPromise = null;
-
-  const host = document.createElement("div");
-  host.id = "ama-widget";
-  host.className = "ama-widget";
-  host.innerHTML = `
-    <div class="ama-panel" hidden>
-      <div class="ama-panel-header">
-        <h3>Ask Me Anything</h3>
-        <button type="button" class="ama-close" aria-label="Close AMA chat">x</button>
-      </div>
-      <div class="ama-messages">
-        <div class="ama-msg ama-msg-assistant">Hi, feel free to ask me anything that you would want to know about me</div>
-      </div>
-      <form class="ama-input-row">
-        <input type="text" name="question" placeholder="Type your question..." aria-label="Type your question" />
-        <button type="submit" class="ama-send">Send</button>
-      </form>
-    </div>
-    <button type="button" class="ama-bubble" aria-expanded="false" aria-controls="ama-chat-panel">
-      <svg class="ama-bubble-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M21 12a8.5 8.5 0 0 1-8.5 8.5H5l-2 2v-10.5A8.5 8.5 0 1 1 21 12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-      </svg>
-      <span class="ama-bubble-label">AMA</span>
-      <span class="ama-bubble-tooltip">Ask me anything</span>
-    </button>
-  `;
-
-  const panel = host.querySelector(".ama-panel");
-  panel.id = "ama-chat-panel";
-  const bubble = host.querySelector(".ama-bubble");
-  const closeBtn = host.querySelector(".ama-close");
-  const form = host.querySelector(".ama-input-row");
-  const input = form.querySelector('input[name="question"]');
-  const messages = host.querySelector(".ama-messages");
-  const sessionId = getOrCreateSessionId();
-
-  const appendMessage = (text, role, options = {}) => {
-    const node = document.createElement("div");
-    node.className = `ama-msg ${role === "user" ? "ama-msg-user" : "ama-msg-assistant"}`;
-    const textNode = document.createElement("div");
-    textNode.className = "ama-msg-text";
-    textNode.textContent = text;
-    node.appendChild(textNode);
-    if (role === "assistant" && options.eventId && CHATBOT_API_BASE) {
-      const feedback = buildFeedbackControls({
-        eventId: options.eventId,
-        sessionId,
-      });
-      node.appendChild(feedback);
-    }
-    messages.appendChild(node);
-    messages.scrollTop = messages.scrollHeight;
-  };
-  const setSubmitState = (isSubmitting) => {
-    input.disabled = isSubmitting;
-    form.querySelector(".ama-send").disabled = isSubmitting;
-  };
-
-  const openPanel = () => {
-    panel.hidden = false;
-    bubble.setAttribute("aria-expanded", "true");
-    input.focus();
-  };
-  const closePanel = () => {
-    panel.hidden = true;
-    bubble.setAttribute("aria-expanded", "false");
-  };
-
-  bubble.addEventListener("click", () => {
-    if (panel.hidden) {
-      openPanel();
-    } else {
-      closePanel();
-    }
-  });
-  closeBtn.addEventListener("click", closePanel);
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const question = input.value.trim();
-    if (!question) {
-      return;
-    }
-    appendMessage(question, "user");
-    input.value = "";
-    setSubmitState(true);
-    try {
-      indexPromise = indexPromise || loadChatbotIndex(runtime.chatbotIndexFile);
-      const index = await indexPromise;
-      const results = searchIndex(index, question, 3);
-      if (!results.length) {
-        appendMessage("I'm unable to answer this, please contact Rohit for clarity on this query", "assistant");
-      } else {
-        const top = results[0];
-        let answer = "";
-        let backendEventId = "";
-        try {
-          const backend = await queryBackendChat(question, sessionId);
-          if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
-            answer = backend.answer.trim();
-          }
-          if (backend && typeof backend.event_id === "string") {
-            backendEventId = backend.event_id;
-          }
-        } catch (_error) {
-          answer = "";
-          backendEventId = "";
-        }
-        const fallback = buildTailoredAnswer(results, question);
-        appendMessage(`${answer || fallback}`, "assistant", { eventId: backendEventId });
-      }
-    } catch (error) {
-      appendMessage("Search index is unavailable right now. Please try again shortly.", "assistant");
-      console.error(error);
-    } finally {
-      setSubmitState(false);
-      input.focus();
-    }
-  });
-
-  document.body.appendChild(host);
-}
-
-function buildFeedbackControls({ eventId, sessionId }) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "ama-feedback";
-  wrapper.setAttribute("role", "group");
-  wrapper.setAttribute("aria-label", "Was this answer helpful?");
-
-  const status = document.createElement("span");
-  status.className = "ama-feedback-status";
-  status.setAttribute("aria-live", "polite");
-
-  const sendRating = async (rating, button) => {
-    const buttons = wrapper.querySelectorAll("button.ama-feedback-btn");
-    for (const b of buttons) {
-      b.disabled = true;
-    }
-    button.classList.add("is-active");
-    status.textContent = "Thanks for the feedback.";
-    const result = await submitChatFeedback({ eventId, sessionId, rating });
-    if (!result?.accepted) {
-      status.textContent = "Could not record feedback.";
-    }
-  };
-
-  const upBtn = document.createElement("button");
-  upBtn.type = "button";
-  upBtn.className = "ama-feedback-btn ama-feedback-up";
-  upBtn.setAttribute("aria-label", "Helpful answer");
-  upBtn.textContent = "Helpful";
-  upBtn.addEventListener("click", () => sendRating(1, upBtn));
-
-  const downBtn = document.createElement("button");
-  downBtn.type = "button";
-  downBtn.className = "ama-feedback-btn ama-feedback-down";
-  downBtn.setAttribute("aria-label", "Not helpful answer");
-  downBtn.textContent = "Not helpful";
-  downBtn.addEventListener("click", () => sendRating(-1, downBtn));
-
-  wrapper.appendChild(upBtn);
-  wrapper.appendChild(downBtn);
-  wrapper.appendChild(status);
-  return wrapper;
-}
-
 async function main() {
   const app = document.getElementById("app");
   try {
@@ -787,7 +505,6 @@ async function main() {
       return;
     }
     app.innerHTML = renderFormat1(data, runtime);
-    mountAmaWidget(runtime);
   } catch (e) {
     app.innerHTML = `
       <main class="site-header" style="background:#450a0a;color:#fecaca;">

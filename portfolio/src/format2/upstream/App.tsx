@@ -1,10 +1,8 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download, MessageCircle, Send } from 'lucide-react';
+import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { NAV_ITEMS, PROJECT_ICONS, categoryIconForLabel } from './constants';
 import SkillChart from './components/SkillChart';
-import AiAssistant from './components/AiAssistant';
-import { buildTailoredAnswer, searchIndex } from '../../chatbotNlp.js';
 
 // Custom LinkedIn Icon with latest design
 const LinkedInIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
@@ -315,105 +313,6 @@ function githubUsernameFromContact(contact: any): string {
 const GITHUB_AVATAR_STORAGE_PREFIX = "pi_github_avatar:v1:";
 const GITHUB_AVATAR_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-const CHATBOT_API_BASE = String((import.meta as any).env?.VITE_CHATBOT_API_BASE || "").trim();
-const CHATBOT_CORPUS_ID = String((import.meta as any).env?.VITE_CHATBOT_CORPUS_ID || "default").trim();
-const CHATBOT_ALLOW_FALLBACK =
-  String((import.meta as any).env?.VITE_CHATBOT_ALLOW_FALLBACK || "true").trim().toLowerCase() !== "false";
-const CHATBOT_ANSWER_METHOD = String((import.meta as any).env?.VITE_CHATBOT_ANSWER_METHOD || "").trim();
-const CHATBOT_ANSWER_METHOD_ALLOWED = new Set([
-  "hugging_face_lightweight_nlp",
-  "hugging_face",
-  "lightweight_nlp",
-]);
-const CHATBOT_RETRIEVAL_MODEL = String((import.meta as any).env?.VITE_CHATBOT_RETRIEVAL_MODEL || "").trim();
-const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
-  "bm25",
-  "hashed_vector",
-  "bm25_hashed_vector",
-  "rule_lexicon_tfidf",
-]);
-
-const AMA_SESSION_STORAGE_KEY = "pi_ama_session_id:v1";
-
-function getOrCreateAmaSessionId(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  try {
-    const existing = window.sessionStorage.getItem(AMA_SESSION_STORAGE_KEY);
-    if (existing && existing.trim()) {
-      return existing.trim();
-    }
-    const fresh = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    window.sessionStorage.setItem(AMA_SESSION_STORAGE_KEY, fresh);
-    return fresh;
-  } catch (_error) {
-    return `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  }
-}
-
-async function queryBackendChat(question: string, sessionId: string): Promise<any | null> {
-  if (!CHATBOT_API_BASE) return null;
-  const payload: Record<string, unknown> = {
-    query: question,
-    corpus_id: CHATBOT_CORPUS_ID,
-    top_k: 3,
-    min_score: 0.0,
-    allow_fallback: CHATBOT_ALLOW_FALLBACK,
-  };
-  if (sessionId) {
-    payload.session_id = sessionId;
-  }
-  if (CHATBOT_ANSWER_METHOD && CHATBOT_ANSWER_METHOD_ALLOWED.has(CHATBOT_ANSWER_METHOD)) {
-    payload.answer_method = CHATBOT_ANSWER_METHOD;
-  }
-  if (CHATBOT_RETRIEVAL_MODEL && CHATBOT_RETRIEVAL_MODEL_ALLOWED.has(CHATBOT_RETRIEVAL_MODEL)) {
-    payload.retrieval_model = CHATBOT_RETRIEVAL_MODEL;
-  }
-  const response = await fetch(`${CHATBOT_API_BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`Backend chat failed (${response.status})`);
-  }
-  return response.json();
-}
-
-async function submitAmaFeedback(args: {
-  eventId: string;
-  sessionId: string;
-  rating: number;
-  comment?: string;
-}): Promise<{ accepted: boolean }> {
-  if (!CHATBOT_API_BASE || !args.eventId) {
-    return { accepted: false };
-  }
-  const payload: Record<string, unknown> = {
-    event_id: args.eventId,
-    rating: args.rating,
-    comment: args.comment || "",
-  };
-  if (args.sessionId) {
-    payload.session_id = args.sessionId;
-  }
-  try {
-    const response = await fetch(`${CHATBOT_API_BASE}/chat/feedback`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      return { accepted: false };
-    }
-    const body = await response.json();
-    return { accepted: Boolean(body?.accepted) };
-  } catch (_error) {
-    return { accepted: false };
-  }
-}
-
 type GithubAvatarCache = { url: string; savedAt: number };
 
 function readGithubAvatarCache(login: string): GithubAvatarCache | null {
@@ -449,227 +348,6 @@ function stripUrlQueryForCompare(href: string): string {
     return href;
   }
 }
-
-type AmaMessage = {
-  role: "assistant" | "user";
-  text: string;
-  eventId?: string;
-  feedback?: "up" | "down" | null;
-};
-
-const AmaFeedbackButtons: React.FC<{
-  eventId: string;
-  sessionId: string;
-  current: "up" | "down" | null | undefined;
-  onSubmit: (rating: 1 | -1) => void;
-}> = ({ eventId, sessionId, current, onSubmit }) => {
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string>("");
-  if (!CHATBOT_API_BASE || !eventId) {
-    return null;
-  }
-  const handleClick = async (rating: 1 | -1) => {
-    if (busy || current) return;
-    setBusy(true);
-    setStatus("Sending feedback...");
-    onSubmit(rating);
-    const result = await submitAmaFeedback({ eventId, sessionId, rating });
-    setStatus(result.accepted ? "Thanks for the feedback." : "Could not record feedback.");
-    setBusy(false);
-  };
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="group" aria-label="Was this answer helpful?">
-      <button
-        type="button"
-        onClick={() => handleClick(1)}
-        disabled={busy || Boolean(current)}
-        className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-          current === "up"
-            ? "border-emerald-500 bg-emerald-700 text-emerald-50"
-            : "border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
-        }`}
-        aria-label="Helpful answer"
-      >
-        Helpful
-      </button>
-      <button
-        type="button"
-        onClick={() => handleClick(-1)}
-        disabled={busy || Boolean(current)}
-        className={`rounded-full border px-2.5 py-1 font-medium transition-colors ${
-          current === "down"
-            ? "border-rose-500 bg-rose-700 text-rose-50"
-            : "border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800 disabled:opacity-60"
-        }`}
-        aria-label="Not helpful answer"
-      >
-        Not helpful
-      </button>
-      {status ? <span className="text-slate-400">{status}</span> : null}
-    </div>
-  );
-};
-
-const AmaWidget: React.FC<{ chatbotIndexFile: string }> = ({ chatbotIndexFile }) => {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const indexRef = useRef<any[] | null>(null);
-  const sessionIdRef = useRef<string>("");
-  if (!sessionIdRef.current) {
-    sessionIdRef.current = getOrCreateAmaSessionId();
-  }
-  const [messages, setMessages] = useState<AmaMessage[]>([
-    { role: "assistant", text: "Hi, feel free to ask me anything that you would want to know about me" },
-  ]);
-
-  const recordLocalFeedback = (eventId: string, value: "up" | "down") => {
-    setMessages((prev) =>
-      prev.map((m) => (m.eventId === eventId ? { ...m, feedback: value } : m)),
-    );
-  };
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const question = input.trim();
-    if (!question) return;
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: question },
-    ]);
-    setInput("");
-    setSubmitting(true);
-    try {
-      if (!indexRef.current) {
-        const base = ((import.meta as any).env?.BASE_URL ?? "/") as string;
-        const bustParam = (import.meta as any).env?.VITE_SITE_DATA_BUST
-          ? `?v=${encodeURIComponent(String((import.meta as any).env?.VITE_SITE_DATA_BUST))}`
-          : "";
-        const response = await fetch(`${base}${chatbotIndexFile}${bustParam}`, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`Could not load ${chatbotIndexFile} (${response.status})`);
-        }
-        indexRef.current = await response.json();
-      }
-      const results = searchIndex(indexRef.current || [], question, 3);
-      if (!results.length) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: "I'm unable to answer this, please contact Rohit for clarity on this query" },
-        ]);
-      } else {
-        const top = results[0];
-        let answer = "";
-        let backendEventId = "";
-        try {
-          const backend = await queryBackendChat(question, sessionIdRef.current);
-          if (backend && typeof backend.answer === "string" && backend.answer.trim()) {
-            answer = backend.answer.trim();
-          }
-          if (backend && typeof backend.event_id === "string") {
-            backendEventId = backend.event_id;
-          }
-        } catch (_error) {
-          answer = "";
-          backendEventId = "";
-        }
-        const tailored = buildTailoredAnswer(results, question);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: `${answer || tailored}`,
-            eventId: backendEventId || undefined,
-            feedback: null,
-          },
-        ]);
-      }
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: "Search index is unavailable right now. Please try again shortly." },
-      ]);
-      console.error(error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50">
-      {open ? (
-        <div className="mb-3 w-[min(92vw,340px)] rounded-xl border border-slate-700 bg-slate-900 text-slate-100 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-slate-700 px-3 py-2">
-            <h3 className="text-sm font-semibold">Ask Me Anything</h3>
-            <button
-              type="button"
-              className="rounded-md border border-slate-600 px-2 py-1 text-xs hover:bg-slate-800"
-              onClick={() => setOpen(false)}
-              aria-label="Close AMA chat"
-            >
-              x
-            </button>
-          </div>
-          <div className="grid max-h-64 gap-2 overflow-y-auto px-3 py-3">
-            {messages.map((message, idx) => (
-              <div
-                key={`${message.role}-${idx}`}
-                className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
-                  message.role === "user"
-                    ? "ml-auto max-w-[90%] bg-blue-700 text-white"
-                    : "max-w-[94%] border border-slate-700 bg-slate-800 text-slate-200"
-                }`}
-              >
-                <div className="whitespace-pre-wrap">{message.text}</div>
-                {message.role === "assistant" && message.eventId ? (
-                  <AmaFeedbackButtons
-                    eventId={message.eventId}
-                    sessionId={sessionIdRef.current}
-                    current={message.feedback ?? null}
-                    onSubmit={(rating) =>
-                      recordLocalFeedback(message.eventId as string, rating > 0 ? "up" : "down")
-                    }
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-          <form className="flex gap-2 border-t border-slate-700 p-3" onSubmit={submit}>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your question..."
-              disabled={submitting}
-              className="flex-1 rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-1 rounded-md border border-blue-500 bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </button>
-          </form>
-        </div>
-      ) : null}
-      <button
-        type="button"
-        className="group relative inline-flex items-center gap-2 rounded-full border border-blue-400 bg-blue-900 px-3 py-3 text-sm font-semibold text-blue-100 shadow-lg hover:bg-blue-800"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <MessageCircle className="h-4 w-4" />
-        <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-14 group-hover:opacity-100 group-focus-visible:max-w-14 group-focus-visible:opacity-100">
-          AMA
-        </span>
-        <span className="pointer-events-none absolute bottom-[calc(100%+8px)] right-0 translate-y-1 whitespace-nowrap rounded-md border border-[#355783] bg-[#13263f] px-2 py-1 text-[11px] text-[#eaf2ff] opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
-          Ask me anything
-        </span>
-      </button>
-    </div>
-  );
-};
 
 const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const [activeSection, setActiveSection] = useState('about');
@@ -804,7 +482,6 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
     optimisticGithubAvatarPng ||
     localProfileFallback;
   const profilePhotoAlt = profileName || "Profile photo";
-  const chatbotIndexFile = String(runtime?.chatbotIndexFile || "chatbot/index.default.json");
   const pdfFile = runtime?.pdfFile ? String(runtime.pdfFile).trim() : "";
   const resumePdfHref =
     data?.pdfAvailable && pdfFile ? `${baseUrl}${pdfFile}` : null;
@@ -1981,21 +1658,15 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
         </div>
       </footer>
 
-      {/* Floating Utilities */}
-      {/* AI Assistant disabled for GitHub Pages - requires backend proxy for secure API key handling */}
-      {/* <AiAssistant /> */}
-
       {/* Scroll To Top Button */}
       <button
         onClick={scrollToTop}
-        className={`fixed bottom-24 right-7 z-40 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-all duration-500 transform ${
+        className={`fixed bottom-7 right-7 z-40 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-all duration-500 transform ${
           showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'
         }`}
       >
         <ArrowUp className="w-5 h-5" />
       </button>
-
-      <AmaWidget chatbotIndexFile={chatbotIndexFile} />
 
     </div>
   );
