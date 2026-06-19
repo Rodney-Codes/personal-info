@@ -17,8 +17,8 @@ from pydantic import BaseModel, Field
 from docs_chatbot_service.core.chat_log_store import (
     ChatEventRecord,
     ChatFeedbackRecord,
-    ChatLogStore,
     get_store,
+    new_event_id,
 )
 from docs_chatbot_service.core.query_nlp import (
     analyze_query,
@@ -441,7 +441,7 @@ def _resolve_session_id(supplied: Optional[str]) -> str:
     candidate = (supplied or "").strip()
     if candidate:
         return candidate[:128]
-    return f"anon-{ChatLogStore.new_event_id()}"
+    return f"anon-{new_event_id()}"
 
 
 def _bucket_for_method(method: str, results_count: int) -> str:
@@ -512,7 +512,7 @@ def chat(request_body: ChatRequest) -> ChatResponse:
         )
 
     session_id = _resolve_session_id(request_body.session_id)
-    event_id = ChatLogStore.new_event_id()
+    event_id = new_event_id()
 
     results = service.search(
         SearchParams(

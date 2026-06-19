@@ -15,7 +15,7 @@ for p in (SRC_ROOT, SCRIPTS_ROOT, REPO_ROOT):
 from docs_chatbot_service.core.chat_log_store import (  # noqa: E402
     ChatEventRecord,
     ChatFeedbackRecord,
-    ChatLogStore,
+    new_event_id,
     reset_store_for_tests,
 )
 
@@ -32,7 +32,7 @@ class AnalyzeChatLogsTests(unittest.TestCase):
 
     def _seed_dataset(self) -> None:
         # Successful answer with high confidence.
-        good_id = ChatLogStore.new_event_id()
+        good_id = new_event_id()
         self.store.insert_event(
             ChatEventRecord(
                 event_id=good_id,
@@ -56,7 +56,7 @@ class AnalyzeChatLogsTests(unittest.TestCase):
             )
         )
         # Low confidence answer (below threshold).
-        weak_id = ChatLogStore.new_event_id()
+        weak_id = new_event_id()
         self.store.insert_event(
             ChatEventRecord(
                 event_id=weak_id,
@@ -82,7 +82,7 @@ class AnalyzeChatLogsTests(unittest.TestCase):
         # Failed query (no results).
         self.store.insert_event(
             ChatEventRecord(
-                event_id=ChatLogStore.new_event_id(),
+                event_id=new_event_id(),
                 session_id="s-3",
                 corpus_id="default",
                 query="zzzzz unknown",

@@ -12,18 +12,20 @@
 - Verified standalone tests pass in split repo:
   - `python -m unittest tests.test_api_contracts tests.test_query_nlp -q`
 - Removed temporary in-repo migration workspace (`services/chatbot`) from this repository.
+- Retired portfolio ↔ hosted API wiring (AMA UI removed; no `VITE_CHATBOT_*` in Pages build).
+- Retired Render as the production chatbot host (service to be deleted or left suspended in Render dashboard).
 
 ## Current behavior
 
-- Standalone service source of truth is `docs-chatbot` repo.
-- This `personal-info` repo remains the app/content owner.
-- Chatbot artifacts can be kept app-specific in this repo and loaded by URL via:
-  - `POST /corpora/load`
-  - or `chunks_url` / `vector_index_url` in `/search` and `/chat` requests.
+- Standalone service source of truth is `docs-chatbot` repo (local dev only until a new host is chosen).
+- This `personal-info` repo is the app/content owner; live site is portfolio-only.
+- Chatbot artifacts (`content/chatbot_faq.md`, `data/index/...`) remain for future load via:
+  - `POST /corpora/load`, or
+  - `chunks_url` / `vector_index_url` on `/search` and `/chat`.
 
-## Next migration steps
+## Next steps (when re-enabling)
 
-1. Deploy `docs-chatbot` service (Render/Railway/Fly.io or container host).
-2. Create and populate production corpus/index files for `CHATBOT_INDEX_ROOT`.
-3. Set portfolio `VITE_CHATBOT_API_BASE` to deployed service URL.
-4. Run smoke checks: `/health`, `/search`, `/chat` against production corpus.
+1. Finalize corpus/FAQ and retrieval eval in this repo.
+2. Decide integration shape: client-only AMA vs hosted `docs-chatbot` (host TBD — not Render unless you explicitly choose it again).
+3. Re-add portfolio widget and sync/index generation if needed.
+4. Run smoke checks: `/health`, `/search`, `/chat` against the chosen deployment.

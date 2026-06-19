@@ -6,10 +6,6 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
-      lookback_days:
-        description: "Lookback window (days) for chat log analysis"
-        required: false
-        default: "30"
       gate_hit_at_k:
         description: "Minimum hit_at_k required (0 to disable)"
         required: false
@@ -27,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  evaluate-and-analyze:
+  evaluate-retrieval:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -39,13 +35,10 @@ jobs:
       - name: Install minimal Python deps
         run: |
           python -m pip install --upgrade pip
-          # The eval/analyze scripts only require the docs_chatbot_service package
-          # itself plus its core deps. Install via pyproject for portability.
           pip install -e .
 
       - name: Show inputs
         run: |
-          echo "lookback_days=${{ github.event.inputs.lookback_days || '30' }}"
           echo "gate_hit_at_k=${{ github.event.inputs.gate_hit_at_k || '0.6' }}"
           echo "gate_mrr=${{ github.event.inputs.gate_mrr || '0.5' }}"
 
@@ -67,27 +60,7 @@ jobs:
             --report-out data/chat_reports/eval_report.json
           eval_exit=$?
           echo "eval_exit=${eval_exit}" >> "$GITHUB_OUTPUT"
-          # Report-only: do not fail the workflow even if the gate fails. The
-          # report artifact and exit code are surfaced for review.
           exit 0
-
-      - name: Analyze chat logs (Supabase)
-        id: analyze
-        env:
-          LOOKBACK: ${{ github.event.inputs.lookback_days || '30' }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: |
-          if [ -n "${SUPABASE_DB_URL}" ]; then
-            python -m scripts.analyze_chat_logs \
-              --db-url "${SUPABASE_DB_URL}" \
-              --since "${LOOKBACK}" \
-              --output data/chat_reports/chat_log_report.json \
-              --verbose
-            echo "analysis_status=ran" >> "$GITHUB_OUTPUT"
-          else
-            echo "No SUPABASE_DB_URL secret found - skipping analyze step." >&2
-            echo "analysis_status=skipped" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Upload chatbot improvement reports
         uses: actions/upload-artifact@v6
@@ -102,7 +75,6 @@ jobs:
           echo "## Chatbot improvement loop summary" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Eval exit code: ${{ steps.eval.outputs.eval_exit }} (0 = pass, 3 = gate failed)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Analyze step: ${{ steps.analyze.outputs.analysis_status }}" >> "$GITHUB_STEP_SUMMARY"
           if [ -f data/chat_reports/eval_report.json ]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "### Retrieval metrics" >> "$GITHUB_STEP_SUMMARY"
@@ -110,12 +82,5 @@ jobs:
               print('| model | total | hit@k | mrr | gate |');\
               print('| --- | --- | --- | --- | --- |');\
               [print(f\"| {m} | {s['total']} | {s['hit_at_k']:.2f} | {s['mrr']:.2f} | {'PASS' if s['passes_gate'] else 'FAIL'} |\") for m, s in d['models'].items()]" \
-              >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f data/chat_reports/chat_log_report.json ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "### Chat log recommendations" >> "$GITHUB_STEP_SUMMARY"
-            python -c "import json; d=json.load(open('data/chat_reports/chat_log_report.json'));\
-              [print(f\"- {s}\") for s in d['recommendations']['suggestions']]" \
               >> "$GITHUB_STEP_SUMMARY"
           fi

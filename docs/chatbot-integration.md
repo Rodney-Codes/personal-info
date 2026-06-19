@@ -1,103 +1,56 @@
 # Chatbot Integration Guide
 
-This repo includes portfolio frontend integration. The chatbot service can run either:
+## Current status (paused)
 
-- in-repo (legacy/local mode), or
-- as standalone service repo: [Rodney-Codes/docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot).
+- **Portfolio site:** no AMA widget, no `VITE_CHATBOT_*` env vars, no static `public/chatbot/` index from sync.
+- **Hosted API:** no production backend (Render deployment retired). Do not point the site at a public chatbot URL until integration is re-enabled deliberately.
+- **This repo still owns:** resume/portfolio content, `content/chatbot_faq.md`, corpus build scripts, and optional local API code under `src/docs_chatbot_service/`.
+- **Standalone service repo:** [Rodney-Codes/docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot) — run locally for API/HF experiments; not required for the live portfolio.
 
-## Scope
+## Scope when re-enabled
 
-- Retrieval-only chatbot (no cloud LLM in the request path)
-- Static search index generation during `portfolio` sync
-- Portfolio `AMA` floating chat widget integrated in both template paths
+- Retrieval-first chatbot (cloud LLM optional on the backend only, not required for static NLP fallback).
+- App-specific corpus artifacts in this repo (`data/index/...`, FAQ markdown).
+- Portfolio widget + optional backend in `docs-chatbot` (host TBD when you confirm).
 
-## Runtime components
+## Local development (optional)
 
-- Static index generator: `portfolio/scripts/sync-site.mjs`
-- Optional backend API: `src/docs_chatbot_service/api/app.py` (`/search`, `/chat`)
-- Frontend integration:
-  - `portfolio/src/main.js` (format1 path)
-  - `portfolio/src/format2/upstream/App.tsx` (format2 path)
+### Portfolio (site only)
 
-## Recommended local workflow
+```bash
+cd portfolio
+npm install
+npm run sync
+npm run dev
+```
 
-1. Configure portfolio env (optional):
-   - Copy `portfolio/.env.example` -> `portfolio/.env`
-2. (Optional backend mode) run API:
-   - `.\.venv\Scripts\python -m uvicorn docs_chatbot_service.main:app --reload`
-3. Run portfolio:
-   - `cd portfolio && npm run dev`
+### In-repo API (legacy / parity with docs-chatbot)
 
-`npm run sync` now generates a static chatbot index in:
+```bash
+pip install -e .
+python scripts/build_corpus_from_workflow.py
+uvicorn docs_chatbot_service.main:app --reload
+```
 
-- `portfolio/public/chatbot/index.<profile_id>.json`
+### Standalone docs-chatbot repo
 
-And records it in runtime metadata:
+```bash
+cd ../docs-chatbot
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-- `portfolio/public/workflow.runtime.json` -> `chatbot_index_file`
+## Re-integration checklist (when you confirm)
 
-## Environment variables
+1. Improve corpus (FAQ, chunks, eval) in this repo.
+2. Choose a host for `docs-chatbot` (or client-only AMA with no host).
+3. Re-add portfolio sync/index + AMA UI if using a backend or static index.
+4. Set CORS on the API for `https://rodney-codes.github.io` (or your Pages origin).
+5. Smoke-test `/health`, `/search`, `/chat` before shipping.
 
-- `VITE_SITE_DATA_BUST`:
-  - optional cache-busting value for static JSON assets
-- `VITE_CHATBOT_API_BASE`:
-  - backend API origin (for example `https://your-backend.onrender.com`)
-- `VITE_CHATBOT_CORPUS_ID`:
-  - corpus ID to query from backend (`default` recommended)
+## Q&A logging and feedback (optional backend)
 
-## Deployment notes
+When a backend runs with `CHAT_LOG_ENABLED=true`, exchanges are kept in an in-memory store for the current process (tests and local debugging). There is no external database.
 
-- Single GitHub Pages deployment is supported (no runtime API required).
-- Standalone chatbot backend deployment is supported and recommended:
-  - Set `VITE_CHATBOT_API_BASE` to deployed chatbot API URL.
-  - Keep app-specific corpus artifacts in this repo and load them into chatbot service by URL:
-    - `POST /corpora/load` (recommended preload step), or
-    - `chunks_url` / `vector_index_url` in request payloads.
-- Re-run `npm run sync` whenever active workflow content changes.
-
-## Q&A logging and feedback (continuous improvement loop)
-
-The backend persists every chat exchange to Supabase Postgres so we can
-analyze quality over time and continuously improve retrieval. There is no LLM
-fine-tuning in this loop - it is retrieval-improvement only.
-
-### Storage
-
-- Primary DB: Supabase Postgres (configured via `SUPABASE_DB_URL`).
-- Logging can be disabled with `CHAT_LOG_ENABLED=false`.
-- Tables:
-  - `chat_events` (id, event_id, session_id, corpus_id, category, bucket,
-    query, answer, source, method, retrieval_model, used_hf, top_k, min_score,
-    allow_fallback, latency_ms, info, created_at, updated_at).
-  - `chat_feedback` (id, event_id, session_id, category, bucket, rating,
-    comment, info, created_at, updated_at).
-
-### API
-
-- `POST /chat` now returns `event_id` and `session_id` so the UI can submit
-  feedback for a specific exchange.
-- `POST /chat/feedback` accepts `{ event_id, rating (-1|0|1), comment?,
-  session_id? }`. Returns `404` if the `event_id` is unknown.
-- The frontend AMA widget renders `Helpful` / `Not helpful` buttons under
-  every assistant message (when the backend API is configured).
-
-### Offline analysis
-
-- `python -m scripts.analyze_chat_logs --db-url "$SUPABASE_DB_URL"`
-  emits a JSON report under `data/chat_reports/` covering bucket distribution,
-  failed/low-confidence queries, retrieval-model quality by feedback, and
-  rule-driven tuning suggestions.
-- `python -m scripts.eval_retrieval --eval data/eval/retrieval_eval.json
-  --index-root data/index` runs the offline retrieval eval set and reports
-  hit@k / MRR per retrieval model. Use `--gate-hit-at-k` and `--gate-mrr` to
-  enforce a quality gate (exit code 3 on failure).
-
-### Scheduled workflow
-
-- `.github/workflows/chatbot-improvement.yml` runs weekly (and on demand) in
-  report-only mode. It executes the eval harness on the committed corpus,
-  analyzes chat logs from Supabase when `SUPABASE_DB_URL` is configured as a
-  GitHub Actions secret, and uploads JSON reports as a
-  `chatbot-improvement-reports` artifact for review. No retrieval config is
-  changed automatically.
-
+- `python -m scripts.eval_retrieval --eval data/eval/retrieval_eval.json --index-root data/index`
+- `.github/workflows/chatbot-improvement.yml` — weekly retrieval eval report (offline only).

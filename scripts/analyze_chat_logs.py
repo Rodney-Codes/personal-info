@@ -2,7 +2,7 @@
 Mine chat logs and feedback to produce a retrieval tuning report.
 
 This is a report-only script: it never mutates indexes or service config. It
-aggregates Supabase Postgres chat logs into actionable buckets the team can act on:
+aggregates Postgres chat logs into actionable buckets the team can act on:
 
 - Failed queries (no retrieval results, or `bucket = no_results`).
 - Low-confidence queries (top result score below a threshold).
@@ -12,7 +12,7 @@ aggregates Supabase Postgres chat logs into actionable buckets the team can act 
 
 Usage:
     python -m scripts.analyze_chat_logs \
-        --db-url "$SUPABASE_DB_URL" \
+        --db-url "$CHAT_LOG_DB_URL" \
         --since 30 \
         --output data/chat_reports/chat_log_report.json
 
@@ -56,7 +56,7 @@ def _parse_args() -> argparse.Namespace:
         "--db-url",
         type=str,
         default=DEFAULT_DB_URL,
-        help="Supabase Postgres connection string. If omitted, reads SUPABASE_DB_URL.",
+        help="Postgres connection string. If omitted, reads CHAT_LOG_DB_URL.",
     )
     parser.add_argument(
         "--since",
@@ -92,7 +92,7 @@ def _parse_args() -> argparse.Namespace:
 
 def _open_db(db_url: str) -> psycopg.Connection:
     if not db_url.strip():
-        raise FileNotFoundError("Supabase DB URL not provided (set --db-url or SUPABASE_DB_URL).")
+        raise FileNotFoundError("DB URL not provided (set --db-url or CHAT_LOG_DB_URL).")
     return psycopg.connect(db_url, row_factory=dict_row)
 
 
@@ -415,7 +415,7 @@ def build_report(
     return build_report_from_rows(
         events=events,
         feedback=feedback,
-        source_label="supabase_postgres",
+        source_label="postgres",
         since_days=since_days,
         threshold=threshold,
         max_samples=max_samples,
@@ -430,7 +430,7 @@ def main() -> int:
     )
     try:
         report = build_report(
-            db_url=(args.db_url or os.getenv("SUPABASE_DB_URL", "")).strip(),
+            db_url=(args.db_url or os.getenv("CHAT_LOG_DB_URL", "")).strip(),
             since_days=args.since,
             threshold=args.low_confidence_threshold,
             max_samples=args.max_samples,

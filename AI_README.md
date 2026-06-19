@@ -4,11 +4,10 @@ This file is the single-source context for any AI agent working in this repo.
 
 ## 1) What this repo is
 
-- Retrieval-only chatbot system (Phase 1), no cloud LLM calls.
+- Retrieval-only chatbot system (Phase 1), no mandatory cloud LLM in the request path.
 - Purpose: return grounded snippets from owned documents at near-zero ongoing cost.
-- Primary production mode: static index search in the portfolio frontend (GitHub Pages compatible).
-- Optional mode: backend API (`/search`) for non-static deployments.
-- Production chatbot endpoint is provided via `VITE_CHATBOT_API_BASE` during the Pages build workflow.
+- **Current production portfolio:** static site only; AMA widget and hosted API are **not** wired (Render deployment retired).
+- Optional mode: run backend API locally from this repo or from [docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot) when re-integrating.
 
 ## 2) Architecture snapshot
 
@@ -22,14 +21,14 @@ This file is the single-source context for any AI agent working in this repo.
 
 ## 3) Setup and run (required sequence)
 
-Static mode (recommended for this repo):
+Static mode (portfolio site today):
 
 1. `cd portfolio`
 2. `npm install`
-3. `npm run sync` (generates site JSON + chatbot index)
+3. `npm run sync` (generates site JSON + public resume PDF)
 4. `npm run dev` (or `npm run build`)
 
-Optional API mode:
+Optional API mode (local / future hosted backend):
 
 1. Create virtual environment.
 2. Install package:
@@ -180,7 +179,7 @@ Only certain content/template combinations are currently considered validated:
 
 1. `resume_1` + `portfolio_2` + `resume_format_1` + `template_format_2`
    - Primary production combination (default in `config/workflow.active.json`).
-   - Best fit for current portfolio UX and chatbot behavior.
+   - Best fit for current portfolio UX.
 2. `resume_1` + `portfolio_1` + `resume_format_1` + `template_format_1`
    - Supported fallback/legacy presentation path.
 
@@ -188,4 +187,4 @@ When changing any of these IDs, assume the new combination is unvalidated until 
 - `python -m tools workflow validate-config`
 - `python -m tools resume build`
 - `cd portfolio && npm run sync`
-- local site + chatbot smoke test
+- local site smoke test

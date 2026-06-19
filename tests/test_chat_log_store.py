@@ -18,7 +18,7 @@ from docs_chatbot_service.core import chat_log_store as cls_module
 from docs_chatbot_service.core.chat_log_store import (
     ChatEventRecord,
     ChatFeedbackRecord,
-    ChatLogStore,
+    new_event_id,
 )
 
 
@@ -50,7 +50,7 @@ class ChatLogStoreUnitTests(unittest.TestCase):
         cls_module._GLOBAL_STORE = None
 
     def test_insert_event_persists_required_columns(self) -> None:
-        event_id = ChatLogStore.new_event_id()
+        event_id = new_event_id()
         record = ChatEventRecord(
             event_id=event_id,
             session_id="sess-1",
@@ -93,7 +93,7 @@ class ChatLogStoreUnitTests(unittest.TestCase):
         self.assertEqual(info["top_results"][0]["chunk_id"], "skills-1")
 
     def test_insert_feedback_links_to_event(self) -> None:
-        event_id = ChatLogStore.new_event_id()
+        event_id = new_event_id()
         self.store.insert_event(
             ChatEventRecord(
                 event_id=event_id,
