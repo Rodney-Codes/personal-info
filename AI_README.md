@@ -1,13 +1,18 @@
 # AI README: Docs Chatbot Service
 
-This file is the single-source context for any AI agent working in this repo.
+This file is the single-source context for any AI agent working in **this** repo (portfolio content + integration).
+
+**Hosted chatbot microservice (API source of truth):**  
+https://raw.githubusercontent.com/Rodney-Codes/docs-chatbot/main/AI_README.md
+
+**Production API:** https://docs-chatbot-ku9h.onrender.com
 
 ## 1) What this repo is
 
 - Retrieval-only chatbot system (Phase 1), no mandatory cloud LLM in the request path.
 - Purpose: return grounded snippets from owned documents at near-zero ongoing cost.
-- **Current production portfolio:** static site only; AMA widget and hosted API are **not** wired (Render deployment retired).
-- Optional mode: run backend API locally from this repo or from [docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot) when re-integrating.
+- **Current production portfolio:** GitHub Pages + health-gated AMA widget; hosted API on Render (see integration docs below).
+- Standalone service repo: [docs-chatbot](https://github.com/Rodney-Codes/docs-chatbot). Integration guide: `docs/chatbot-integration.md`, `docs/render-chatbot-setup.md`.
 
 ## 2) Architecture snapshot
 

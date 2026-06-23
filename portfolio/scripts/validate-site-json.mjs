@@ -65,4 +65,25 @@ if (!data.meta || typeof data.meta.title !== "string") {
   fail('expected object "meta" with string title');
 }
 
+const chatbotIndexFile =
+  runtime &&
+  typeof runtime.chatbot_index_file === "string" &&
+  runtime.chatbot_index_file.trim()
+    ? runtime.chatbot_index_file.trim()
+    : "";
+if (chatbotIndexFile) {
+  const chatbotIndexPath = path.join(PUBLIC_DIR, chatbotIndexFile);
+  if (!fs.existsSync(chatbotIndexPath)) {
+    fail(`missing ${chatbotIndexPath} — run: npm run sync`);
+  }
+  try {
+    const index = JSON.parse(fs.readFileSync(chatbotIndexPath, "utf8"));
+    if (!Array.isArray(index) || index.length === 0) {
+      fail(`expected non-empty array in ${chatbotIndexPath}`);
+    }
+  } catch (e) {
+    fail(`invalid chatbot index JSON: ${e.message}`);
+  }
+}
+
 console.log("validate-site-json: OK", SITE_JSON);

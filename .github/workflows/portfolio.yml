@@ -37,11 +37,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libcairo2-dev pkg-config
 
-      - name: Build resume PDF (workflow-selected)
+      - name: Build resume PDF and chatbot corpus
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python -m tools resume build
+          python scripts/build_corpus_from_workflow.py
 
       - uses: actions/setup-node@v6
         with:
@@ -54,8 +55,12 @@ jobs:
         env:
           GITHUB_PAGES: "true"
           GITHUB_REPOSITORY: ${{ github.repository }}
-          # Unique per commit so workflow.runtime.json / site JSON bypass Fastly max-age=600 edge cache
           VITE_SITE_DATA_BUST: ${{ github.sha }}
+          VITE_CHATBOT_API_BASE: ${{ vars.VITE_CHATBOT_API_BASE }}
+          VITE_CHATBOT_CORPUS_ID: ${{ vars.VITE_CHATBOT_CORPUS_ID }}
+          VITE_CHATBOT_ALLOW_FALLBACK: ${{ vars.VITE_CHATBOT_ALLOW_FALLBACK }}
+          VITE_CHATBOT_ANSWER_METHOD: ${{ vars.VITE_CHATBOT_ANSWER_METHOD }}
+          VITE_CHATBOT_RETRIEVAL_MODEL: ${{ vars.VITE_CHATBOT_RETRIEVAL_MODEL }}
         run: |
           npm ci
           npm run sync

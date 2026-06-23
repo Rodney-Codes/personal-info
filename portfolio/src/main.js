@@ -2,6 +2,7 @@
  * Loads workflow-selected site data JSON.
  */
 
+import { startChatbotWarmup, tryMountAmaWidget } from "./amaWidget.js";
 import { profileHandleFromUrl } from "./lib/profileHandleFromUrl.js";
 
 function inlineBold(s) {
@@ -84,6 +85,10 @@ async function loadData() {
   const runtime = await runtimeRes.json();
   const siteFile = runtime?.site_json_file;
   const pdfFile = runtime?.resume_pdf_file;
+  const chatbotIndexFile =
+    runtime?.chatbot_index_file && typeof runtime.chatbot_index_file === "string"
+      ? runtime.chatbot_index_file.trim()
+      : "";
   if (
     !siteFile ||
     typeof siteFile !== "string" ||
@@ -108,6 +113,7 @@ async function loadData() {
     data,
     runtime: {
       pdfFile,
+      chatbotIndexFile,
       profileId: runtime.profile_id,
       selected,
     },
@@ -485,6 +491,7 @@ function activateFormat2Interactions() {
 
 async function main() {
   const app = document.getElementById("app");
+  const chatbotWarmup = startChatbotWarmup();
   try {
     const { data, runtime } = await loadData();
     document.title = data.meta?.title || data.name || "Portfolio";
@@ -502,9 +509,17 @@ async function main() {
       ]);
       const root = createRoot(app);
       root.render(React.createElement(UpstreamApp, { data, runtime }));
+      await tryMountAmaWidget(
+        { chatbot_index_file: runtime.chatbotIndexFile },
+        chatbotWarmup,
+      );
       return;
     }
     app.innerHTML = renderFormat1(data, runtime);
+    await tryMountAmaWidget(
+      { chatbot_index_file: runtime.chatbotIndexFile },
+      chatbotWarmup,
+    );
   } catch (e) {
     app.innerHTML = `
       <main class="site-header" style="background:#450a0a;color:#fecaca;">
