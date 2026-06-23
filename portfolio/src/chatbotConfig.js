@@ -36,10 +36,10 @@ export const CHATBOT_RETRIEVAL_MODEL_ALLOWED = new Set([
 
 /** Max time to wait for Render cold start before hiding the widget. */
 export const CHATBOT_HEALTH_TIMEOUT_MS = Number(
-  import.meta.env.VITE_CHATBOT_HEALTH_TIMEOUT_MS || 120000,
+  import.meta.env.VITE_CHATBOT_HEALTH_TIMEOUT_MS || 180000,
 );
 
-/** Per-attempt fetch timeout (single wake request can take ~60s on Render free). */
+/** Per-attempt fetch timeout (single wake request can take ~60–90s on Render free). */
 export const CHATBOT_HEALTH_ATTEMPT_MS = Number(
-  import.meta.env.VITE_CHATBOT_HEALTH_ATTEMPT_MS || 90000,
+  import.meta.env.VITE_CHATBOT_HEALTH_ATTEMPT_MS || 120000,
 );

@@ -213,15 +213,27 @@ export async function tryMountAmaWidget(runtime, warmupPromise) {
       ? runtime.chatbot_index_file.trim()
       : "";
   if (!chatbotIndexFile) {
+    console.info("[AMA] No chatbot_index_file in runtime; widget skipped.");
     return;
   }
 
   if (CHATBOT_API_BASE) {
-    const ready = warmupPromise ? await warmupPromise : await waitForChatbotReady();
+    let ready = false;
+    if (warmupPromise) {
+      ready = await warmupPromise;
+    }
     if (!ready) {
-      console.info("[AMA] Chatbot API not ready; widget hidden.");
+      console.info("[AMA] Waiting for chatbot API after page load...");
+      ready = await waitForChatbotReady();
+    }
+    if (!ready) {
+      console.warn(
+        "[AMA] Chatbot API not ready before timeout; widget hidden. Check network/ad-block for",
+        CHATBOT_API_BASE,
+      );
       return;
     }
+    console.info("[AMA] Chatbot API ready; showing widget.");
   }
 
   mountAmaWidget(runtime);

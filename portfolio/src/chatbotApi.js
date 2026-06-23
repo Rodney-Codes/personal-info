@@ -50,7 +50,8 @@ async function fetchHealthOnce() {
     }
     const payload = await response.json();
     return payload?.status === "ok";
-  } catch (_error) {
+  } catch (error) {
+    console.debug("[AMA] health check attempt failed:", error);
     return false;
   } finally {
     window.clearTimeout(timer);
