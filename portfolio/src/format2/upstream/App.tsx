@@ -1,8 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Menu, X, GitBranch, Mail, Play, Database, ArrowRight, CheckCircle2, Loader2, Sparkles, Code2, Terminal, Server, BarChart3, ExternalLink, Zap, LineChart, ArrowUp, ChevronDown, ChevronUp, Download, Moon, Sun } from 'lucide-react';
 import { NAV_ITEMS, PROJECT_ICONS, categoryIconForLabel } from './constants';
 import SkillChart from './components/SkillChart';
+import { applyFormat2Theme, readStoredTheme, storeFormat2Theme } from '../../lib/format2Theme.js';
 
 // Custom LinkedIn Icon with latest design
 const LinkedInIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
@@ -352,6 +353,7 @@ function stripUrlQueryForCompare(href: string): string {
 const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const [activeSection, setActiveSection] = useState('about');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [colorMode, setColorMode] = useState(() => readStoredTheme());
   
   // Pipeline Interaction State
   const [isPipelineRunning, setIsPipelineRunning] = useState(false);
@@ -643,6 +645,18 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    applyFormat2Theme(colorMode);
+  }, [colorMode]);
+
+  const toggleColorMode = () => {
+    setColorMode((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      storeFormat2Theme(next);
+      return next;
+    });
+  };
+
   // Smooth scroll handler
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -753,10 +767,13 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
   const visibleProjectsList = viewAllProjects ? filteredProjects : filteredProjects.slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 relative">
+    <div
+      className="format2-app min-h-screen bg-[#fafafa] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-900 relative"
+      data-color-mode={colorMode}
+    >
       
       {/* Decorative Top-Left Circle */}
-      <div className="fixed -top-20 -left-20 w-80 h-80 bg-blue-100/60 rounded-full blur-3xl pointer-events-none -z-10"></div>
+      <div className="format2-deco-blob fixed -top-20 -left-20 w-80 h-80 bg-blue-100/60 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
       {/* Navigation - Floating iOS Liquid Pill */}
       <nav className="fixed top-0 w-full z-40 pointer-events-none">
@@ -774,7 +791,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
           <div className="pointer-events-auto hidden md:block absolute left-1/2 top-6 -translate-x-1/2">
             <div 
               ref={navRef}
-              className="relative flex items-center gap-1 bg-white/70 backdrop-blur-xl backdrop-saturate-150 border border-white/20 ring-1 ring-black/5 rounded-full px-2 py-1.5 shadow-lg shadow-slate-200/20"
+              className="format2-nav-pill relative flex items-center gap-1 bg-white/70 backdrop-blur-xl backdrop-saturate-150 border border-white/20 ring-1 ring-black/5 rounded-full px-2 py-1.5 shadow-lg shadow-slate-200/20"
             >
               {/* Sliding Background Pill */}
               <div 
@@ -806,18 +823,31 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
             </div>
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="pointer-events-auto md:hidden text-slate-600 p-2 bg-white rounded-full border border-slate-100 shadow-sm relative z-50"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {/* Header actions: theme toggle + mobile menu */}
+          <div className="pointer-events-auto flex items-center gap-2 relative z-50">
+            <button
+              type="button"
+              className="format2-header-btn p-2 bg-white rounded-full border border-slate-100 shadow-sm text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-colors"
+              onClick={toggleColorMode}
+              aria-label={colorMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={colorMode === 'dark' ? 'Light mode' : 'Dark mode'}
+            >
+              {colorMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
+              type="button"
+              className="format2-header-btn md:hidden p-2 bg-white rounded-full border border-slate-100 shadow-sm text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Nav Overlay */}
         {mobileMenuOpen && (
-          <div className="pointer-events-auto md:hidden absolute top-24 left-4 right-4 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 flex flex-col gap-2 shadow-2xl animate-slide-up z-50">
+          <div className="format2-mobile-menu pointer-events-auto md:hidden absolute top-24 left-4 right-4 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl p-4 flex flex-col gap-2 shadow-2xl animate-slide-up z-50">
             {NAV_ITEMS.map((item) => (
               <a
                 key={item.label}
@@ -897,7 +927,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
              ) : null}
 
              {/* Open to Opportunities Badge - More compelling */}
-             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 self-start hover:border-emerald-300 transition-all duration-300 cursor-default shadow-sm">
+             <div className="format2-availability-badge inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 self-start hover:border-emerald-300 transition-all duration-300 cursor-default shadow-sm">
                 <span className="relative w-2.5 h-2.5 rounded-full bg-emerald-500">
                   <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></span>
                 </span>
@@ -978,7 +1008,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
             {/* Floating Stat Badges - Glassmorphic */}
             {/* Badge 1: Top Left - Years of Experience */}
             <div className="stat-badge absolute top-20 -left-16 md:-left-20 animate-float" style={{ animationDelay: '0s' }}>
-              <div className="backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
+              <div className="format2-stat-badge backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
                     <span className="text-white font-bold text-sm">{yearsBadgeText}</span>
@@ -993,7 +1023,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
 
             {/* Badge 2: Top Right - Projects Delivered */}
             <div className="stat-badge absolute top-32 -right-12 md:-right-16 animate-float" style={{ animationDelay: '1s' }}>
-              <div className="backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
+              <div className="format2-stat-badge backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md">
                     <span className="text-white font-bold text-sm">{projectDeliveredText}</span>
@@ -1008,7 +1038,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
 
             {/* Badge 3: Bottom Left - Tech Stack */}
             <div className="stat-badge absolute bottom-12 -left-8 md:-left-12 animate-float" style={{ animationDelay: '2s' }}>
-              <div className="backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
+              <div className="format2-stat-badge backdrop-blur-xl bg-white/80 border border-slate-200/50 rounded-2xl px-5 py-3 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-default">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,9 +1058,9 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       </section>
 
       {/* Impact Dashboard - Key Metrics */}
-      <section className="py-20 bg-gradient-to-b from-white via-slate-50 to-white relative overflow-hidden">
+      <section className="format2-section-impact py-20 relative overflow-hidden">
         {/* Subtle Grid Background */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:48px_48px] opacity-40"></div>
+        <div className="format2-section-grid absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:48px_48px] opacity-40"></div>
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           {/* Header */}
@@ -1139,7 +1169,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       </section>
 
       {/* Tech Stack Logos - Infinite Horizontal Scroll Marquee */}
-      <section className="py-20 bg-gradient-to-r from-slate-50 via-white to-slate-50 overflow-hidden" aria-label="Technology Stack">
+      <section className="format2-section-tech-stack py-20 overflow-hidden" aria-label="Technology Stack">
         {/* Header */}
         <div className="text-center mb-12 px-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 border border-slate-200 mb-4">
@@ -1202,9 +1232,9 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       </section>
 
       {/* What Makes Me Different Section */}
-      <section className="scroll-mt-28 py-24 bg-gradient-to-b from-white via-slate-50 to-white relative overflow-hidden">
+      <section className="format2-section-differentiator scroll-mt-28 py-24 relative overflow-hidden">
         {/* Subtle Grid Background */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:48px_48px] opacity-40"></div>
+        <div className="format2-section-grid absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:48px_48px] opacity-40"></div>
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           {/* Header */}
@@ -1335,9 +1365,9 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
       </section>
 
       {/* Experience Section - Flowing Path Design */}
-      <section id="experience" ref={experienceRef} className="scroll-mt-28 py-24 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/50 relative overflow-hidden">
+      <section id="experience" ref={experienceRef} className="format2-section-experience scroll-mt-28 py-24 relative overflow-hidden">
         {/* Subtle Background Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:64px_64px]"></div>
+        <div className="format2-section-grid absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:64px_64px]"></div>
 
         <div className="max-w-6xl mx-auto px-6 relative">
           {/* Header */}
@@ -1418,7 +1448,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                       {/* Content Card */}
                       <div className={`${isEven ? 'text-left' : 'text-left col-start-2 ml-8'}`}>
                         {/* Period Badge */}
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 mb-4 rounded-full bg-blue-50 border border-blue-100`}>
+                        <div className="format2-period-badge inline-flex items-center gap-2 px-4 py-1.5 mb-4 rounded-full bg-blue-50 border border-blue-100">
                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                           <span className="text-xs font-semibold text-blue-700 tracking-wide">{job.period}</span>
                         </div>
@@ -1464,7 +1494,7 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
                       </div>
 
                       <div className="flex-1 pb-2">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-blue-50 border border-blue-100">
+                        <div className="format2-period-badge inline-flex items-center gap-2 px-3 py-1 mb-3 rounded-full bg-blue-50 border border-blue-100">
                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                           <span className="text-xs font-semibold text-blue-700">{job.period}</span>
                         </div>
@@ -1660,6 +1690,9 @@ const App: React.FC<{ data?: any; runtime?: any }> = ({ data, runtime }) => {
 
       {/* Scroll To Top Button */}
       <button
+        id="scroll-to-top-btn"
+        type="button"
+        aria-label="Scroll to top"
         onClick={scrollToTop}
         className={`fixed bottom-7 right-7 z-40 w-12 h-12 bg-white border border-slate-200 rounded-full shadow-lg flex items-center justify-center text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-all duration-500 transform ${
           showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0 pointer-events-none'

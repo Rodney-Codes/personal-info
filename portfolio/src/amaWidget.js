@@ -194,14 +194,28 @@ export function mountAmaWidget(runtime) {
   });
 
   document.body.appendChild(host);
+  setupAmaDockAvoidance(host);
+}
+
+/** Move AMA left when format2 scroll-to-top FAB is visible (same threshold as App.tsx). */
+function setupAmaDockAvoidance(host) {
+  if (document.body.getAttribute("data-template") !== "format2") {
+    return;
+  }
+  const SCROLL_TOP_THRESHOLD = 400;
+  const update = () => {
+    host.classList.toggle("ama-widget--shift-left", window.scrollY > SCROLL_TOP_THRESHOLD);
+  };
+  update();
+  window.addEventListener("scroll", update, { passive: true });
 }
 
 /**
  * Start warming the hosted API immediately; mount the widget only after /health OK.
- * When VITE_CHATBOT_API_BASE is unset (local dev), mount without waiting.
+ * Skipped when API base is unset or in Vite dev (localhost is not in Render CORS by default).
  */
 export function startChatbotWarmup() {
-  if (!CHATBOT_API_BASE) {
+  if (!CHATBOT_API_BASE || import.meta.env.DEV) {
     return Promise.resolve(true);
   }
   return waitForChatbotReady();

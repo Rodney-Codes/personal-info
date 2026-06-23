@@ -508,6 +508,20 @@ section:last-of-type {
   bottom: 1rem;
   z-index: 200;
   font-family: var(--font-sans);
+  transition: right 0.5s ease;
+}
+
+/*
+ * format2 dock — keep in sync with App.tsx scroll-to-top:
+ * fixed bottom-7 right-7 w-12 h-12 (1.75rem inset, 3rem circle).
+ */
+body[data-template="format2"] .ama-widget {
+  right: 1.75rem;
+  bottom: 1.75rem;
+}
+
+body[data-template="format2"] .ama-widget.ama-widget--shift-left {
+  right: calc(1.75rem + 3rem + 0.75rem);
 }
 
 .ama-bubble {
@@ -526,10 +540,25 @@ section:last-of-type {
   cursor: pointer;
 }
 
+body[data-template="format2"] .ama-bubble {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
 .ama-bubble-icon {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
+}
+
+body[data-template="format2"] .ama-bubble-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
 }
 
 .ama-bubble-label {
@@ -538,6 +567,10 @@ section:last-of-type {
   overflow: hidden;
   white-space: nowrap;
   transition: max-width 0.2s ease, opacity 0.2s ease;
+}
+
+body[data-template="format2"] .ama-bubble-label {
+  display: none;
 }
 
 .ama-bubble:hover .ama-bubble-label,

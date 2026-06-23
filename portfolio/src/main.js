@@ -3,6 +3,7 @@
  */
 
 import { startChatbotWarmup, tryMountAmaWidget } from "./amaWidget.js";
+import { applyFormat2Theme, readStoredTheme } from "./lib/format2Theme.js";
 import { profileHandleFromUrl } from "./lib/profileHandleFromUrl.js";
 
 function inlineBold(s) {
@@ -502,6 +503,7 @@ async function main() {
     const variant = String(data?.ui?.templateVariant || "format1").toLowerCase();
     document.body.setAttribute("data-template", variant);
     if (variant === "format2") {
+      applyFormat2Theme(readStoredTheme());
       const [{ default: React }, { createRoot }, { default: UpstreamApp }] = await Promise.all([
         import("react"),
         import("react-dom/client"),

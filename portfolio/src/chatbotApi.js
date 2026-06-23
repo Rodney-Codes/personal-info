@@ -58,12 +58,22 @@ async function fetchHealthOnce() {
   }
 }
 
+/** Local Vite dev origins are blocked unless added to Render CORS_ALLOW_ORIGINS. */
+function skipHealthGate() {
+  return !CHATBOT_API_BASE || import.meta.env.DEV;
+}
+
 /**
  * Poll until the hosted chatbot API responds OK (wakes Render on first request).
  * Returns false if the deadline passes — caller should keep the widget hidden.
  */
 export async function waitForChatbotReady() {
-  if (!CHATBOT_API_BASE) {
+  if (skipHealthGate()) {
+    if (CHATBOT_API_BASE && import.meta.env.DEV) {
+      console.info(
+        "[AMA] Skipping health gate in dev (Render CORS blocks localhost). Widget uses local NLP fallback unless you add localhost to CORS_ALLOW_ORIGINS on Render.",
+      );
+    }
     return true;
   }
   const deadline = Date.now() + CHATBOT_HEALTH_TIMEOUT_MS;
