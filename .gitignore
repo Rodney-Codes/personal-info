@@ -48,3 +48,6 @@ data/index/*
 # Chatbot offline report artifacts
 data/chat_logs/
 data/chat_reports/
+
+# Repository secrets
+secrets/
