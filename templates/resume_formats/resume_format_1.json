@@ -5,7 +5,8 @@
   "document_template_path": "resume_pdf/assets/templates/document.html",
   "row_templates": {
     "education": "resume_pdf/assets/templates/education_row.html",
-    "experience": "resume_pdf/assets/templates/experience_row.html"
+    "experience": "resume_pdf/assets/templates/experience_row.html",
+    "project": "resume_pdf/assets/templates/project_row.html"
   },
   "section_types": {
     "Professional Summary": "prose",

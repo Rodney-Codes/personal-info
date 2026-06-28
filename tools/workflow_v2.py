@@ -156,6 +156,10 @@ def resolve_resume_build_overrides(
         row_templates.get("experience"),
         "row_templates.experience",
     )
+    project_row_template = _require_nonempty_string(
+        row_templates.get("project"),
+        "row_templates.project",
+    )
     document_title = template.get("document_title", "Resume")
 
     output_pdf_path = REPO_ROOT / "artifacts" / resolved.outputs["resume_pdf"]
@@ -166,6 +170,7 @@ def resolve_resume_build_overrides(
         "document_template": REPO_ROOT / document_template_path,
         "education_row_template": REPO_ROOT / str(education_row_template),
         "experience_row_template": REPO_ROOT / str(experience_row_template),
+        "project_row_template": REPO_ROOT / str(project_row_template),
         "document_title": str(document_title),
     }
 

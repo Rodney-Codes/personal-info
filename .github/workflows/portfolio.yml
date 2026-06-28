@@ -43,6 +43,7 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
           python -m tools resume build
+          python -c "from pypdf import PdfReader; t=''.join((p.extract_text() or '') for p in PdfReader('artifacts/resume.main_release.pdf').pages); assert '@repo' not in t, 'resume PDF still contains literal @repo — check @proj preprocessor'"
           python scripts/build_corpus_from_workflow.py
 
       - uses: actions/setup-node@v6
