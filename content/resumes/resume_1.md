@@ -6,7 +6,7 @@
 
 ## Professional Summary
 
-Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL workflows, data modeling, and analysis within the Pharma consulting and EdTech domains. Proficient in SQL and Python, with experience in setting up databases on AWS EC2 and Lightsail servers. Skilled in data engineering and Google Analytics, with a proven track record of collaborating with cross-functional teams and clients to design and implement impactful data solutions.
+Experienced Data Analyst with 4+ years in ETL, MIS, and analytics across Pharma consulting (ZS) and EdTech (Masai). Owned multi-domain data platforms spanning revenue, placements, curriculum, and admissions; proficient in SQL, Python, AWS, and Metabase.
 
 ---
 
@@ -15,14 +15,14 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 ### Data Analyst
 **Masai** | Bengaluru, Karnataka | Jul 2024 -- Present
 
+- Built org-wide **inflow revenue dashboard** on Metabase, consolidating **ETL from 3 products** into a single revenue table—**improving BD cost efficiency by 15%**, **cutting dashboard load times by 80%**, **compressing revenue-miss diagnosis from ~1 week to same day**, and maintaining **<5% month-end forecast error**; integrated **bank-account reconciliation** so **100% of inflow revenue** was traceable to source
+- Designed **6-stage placement funnel analytics** at student, batch, and role levels across **16 partner institutes, 250+ batches, and 20K active students** (daily monitoring)—**driving 4X growth in recommendation-to-opt-in** and **2X growth in interviews/assignments**, replacing ad-hoc spreadsheet RCA with repeatable funnel views
 - Architected an automated pipeline for student placement recommendations, **reducing manual effort and cutting revenue-side costs by 60%**
-- Streamlined and automated revenue-metric dashboards to highlight recurring trends, **improving cost efficiency by 15% in business development operations**
-- Developed automated web scrapers for lead generation, **resulting in monthly savings of INR 1.2L**
-- Migrated pipelines to GitHub and AWS EC2 crons while spearheading comprehensive pipeline documentation
-- **Implemented weekly dashboards on Metabase** to track daily operations and marketing channels, migrating from spreadsheet-based reporting to enhance efficiency
-- Designed and deployed webhooks along supporting data architecture from several NBFC institutions for reconciliation, **reducing quarterly manual efforts by roughly 17%**
-- **Architected the core resume-job description matching engine** for an AI-native interview and hiring platform, **pairing structured extractions from resumes and role postings with LLM-based fit scores and confidence indices**, supporting a successful follow-on funding round
-- Delivered an automated document-generation workflow for digital admission letters and student identification cards, **reducing operations-team manual effort by 60%**
+- **Owned 20+ production Python ETL pipelines** across **placements, curriculum, and admissions** (lectures, attendance, assignments, onboarding, retention), processing **50M+ daily records**; migrated notebook workflows to **GitHub and Masonite** with webhooks, AWS EC2 crons, and documented runbooks
+- Automated **95% of routine manual reporting** through daily email summaries of lecture ratings/feedback trends and **6-hour Slack digests** on ops ticket progress for curriculum and ops stakeholders
+- **Architected the core resume–job description matching engine** for an AI-native hiring platform (**LLM fit scores and confidence indices**), supporting a successful follow-on funding round
+- Designed webhooks and reconciliation architecture for **NBFC partners**, **reducing quarterly manual effort by ~17%**; automated admission-letter and student-ID document generation, **cutting ops manual effort by 60%**
+- Developed automated web scrapers for lead generation, **saving INR 1.2L monthly** in business development costs
 
 ### Decision Analytics Associate
 **ZS Associates** | Gurgaon, Delhi NCR | Jun 2021 -- Jan 2024
@@ -40,13 +40,8 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 
 ## Projects
 
-**Resume and portfolio builder** | Markdown, Vite, Python PDF tooling | 2026
-@repo https://github.com/Rodney-Codes/personal-info
-- Started an open-source project to create a single source of truth for resumes and portfolios, reducing duplicated work, and building a small sandbox to learn static sites, CI, and lightweight automation.
-
-**Portfolio AMA chatbot (RAG-lite)** | FastAPI, BM25, Hybrid Retrieval, Hugging Face | 2026
-@repo https://github.com/Rodney-Codes/docs-chatbot
-- Built and deployed a lightweight portfolio chatbot with hybrid retrieval (BM25 + vector search), grounded response generation, and production-safe fallback handling.
+@proj Resume and portfolio builder | Markdown, Vite, Python PDF | Single-source-of-truth resume/portfolio tooling with CI and static-site automation | 2026 | https://github.com/Rodney-Codes/personal-info
+@proj Portfolio AMA chatbot (RAG-lite) | FastAPI, BM25, Hybrid Retrieval | Lightweight portfolio chatbot with hybrid retrieval and production-safe fallbacks | 2026 | https://github.com/Rodney-Codes/docs-chatbot
 
 ---
 
@@ -59,5 +54,4 @@ Experienced Data Analyst with 4+ years of expertise in building end-to-end ETL w
 
 ## Technical Skills
 
-@tech Languages | SQL, Python, Mongo, VBA, C/C++, R |
-@tech Tools | AWS EC2/LightSail, Metabase, Power BI, Tableau, Redash, ClickHouse |
+@tech Languages & Tools | SQL, Python, R, Mongo, VBA · AWS EC2/LightSail, S3, Metabase, Power BI, Tableau, Redash, ClickHouse, Google Apps Script, n8n |

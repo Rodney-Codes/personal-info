@@ -5,10 +5,12 @@
   "document_template": "assets/templates/document.html",
   "education_row_template": "assets/templates/education_row.html",
   "experience_row_template": "assets/templates/experience_row.html",
+  "project_row_template": "assets/templates/project_row.html",
   "document_title": "Resume",
   "preprocessors": {
     "edu_and_tech_rows": true,
     "experience_pipe_rows": true,
+    "project_rows": true,
     "first_h1_contact_paragraph": true
   },
   "postprocessors": {

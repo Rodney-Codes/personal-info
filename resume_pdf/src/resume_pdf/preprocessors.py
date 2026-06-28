@@ -7,11 +7,12 @@ import re
 import sys
 from pathlib import Path
 
-from resume_pdf.utils.text import split_three_pipe_fields
+from resume_pdf.utils.text import split_proj_fields, split_three_pipe_fields
 
 
 _EDU_LINE = re.compile(r"^\s*@edu\s+(.+?)\s*$", re.IGNORECASE)
 _TECH_LINE = re.compile(r"^\s*@tech\s+(.+?)\s*$", re.IGNORECASE)
+_PROJ_LINE = re.compile(r"^\s*@proj\s+(.+?)\s*$", re.IGNORECASE)
 _EXP_LINE = re.compile(
     r"^\*\*(?P<company>.+?)\*\*\s*\|\s*(?P<location>.+?)\s*\|\s*(?P<dates>.+?)\s*$"
 )
@@ -47,6 +48,39 @@ def preprocess_edu_and_tech_rows(md_text: str, template_path: Path) -> str:
             template.replace("{{school}}", html.escape(school))
             .replace("{{detail}}", html.escape(detail))
             .replace("{{year}}", html.escape(year))
+        )
+        lines_out.append(row)
+    return "\n".join(lines_out)
+
+
+def preprocess_project_rows(md_text: str, template_path: Path) -> str:
+    if not template_path.is_file():
+        print(
+            f"Missing project row template: {template_path}",
+            file=sys.stderr,
+        )
+        return md_text
+
+    template = template_path.read_text(encoding="utf-8")
+    lines_out: list[str] = []
+    for line in md_text.splitlines():
+        m = _PROJ_LINE.match(line)
+        if not m:
+            lines_out.append(line)
+            continue
+
+        fields = split_proj_fields(m.group(1).strip())
+        if fields is None:
+            lines_out.append(line)
+            continue
+
+        title, stack, desc, year, url = fields
+        row = (
+            template.replace("{{title}}", html.escape(title))
+            .replace("{{stack}}", html.escape(stack))
+            .replace("{{desc}}", html.escape(desc))
+            .replace("{{year}}", html.escape(year))
+            .replace("{{url}}", html.escape(url, quote=True))
         )
         lines_out.append(row)
     return "\n".join(lines_out)

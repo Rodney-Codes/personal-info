@@ -128,7 +128,7 @@ li {
 
 a {
   color: #000;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 /* Section dividers from Markdown ---; tight margins override xhtml2pdf DEFAULT_CSS 1em */
@@ -158,6 +158,46 @@ table.resume-edu-line {
 
 h2 + table.resume-edu-line {
   margin-top: 0.28em;
+}
+
+/* Projects: compact single-line rows (spacing matches education) */
+table.resume-proj-line {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.12em;
+  margin-bottom: 0.14em;
+  font-size: 1em;
+  line-height: 1.12;
+  table-layout: fixed;
+}
+
+h2 + table.resume-proj-line {
+  margin-top: 0.28em;
+}
+
+table.resume-proj-line td {
+  vertical-align: baseline;
+  padding: 0;
+  font-size: 1em;
+  line-height: 1.12;
+}
+
+td.proj-main {
+  width: 86%;
+}
+
+td.proj-year-cell {
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 0.35em;
+}
+
+span.proj-stack {
+  font-weight: normal;
+}
+
+span.proj-desc {
+  font-weight: normal;
 }
 
 /* Experience: company | location (left), date range right — same idea as education */

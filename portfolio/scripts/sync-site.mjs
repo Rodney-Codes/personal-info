@@ -255,6 +255,44 @@ function parseTripleMetaLine(line) {
   return { left: m[1].trim(), middle: m[2].trim(), right: m[3].trim() };
 }
 
+function splitProjFields(rest) {
+  const parts = rest.split("|").map((p) => p.trim());
+  if (parts.length < 5) return null;
+  const title = parts[0];
+  const stack = parts[1];
+  const year = parts[parts.length - 2];
+  const url = parts[parts.length - 1];
+  const desc = parts.slice(2, -2).join(" | ").trim();
+  if (!title || !url) return null;
+  return { title, stack, desc, year, url };
+}
+
+const PROJ_LINE = /^\s*@proj\s+(.+)$/i;
+
+function parseProjects(body) {
+  const fromProj = [];
+  for (const line of body.split("\n")) {
+    const m = line.trim().match(PROJ_LINE);
+    if (!m) continue;
+    const fields = splitProjFields(m[1].trim());
+    if (!fields) continue;
+    let repoUrl = fields.url;
+    if (!/^https?:\/\//i.test(repoUrl) && /^github\.com\//i.test(repoUrl)) {
+      repoUrl = `https://${repoUrl}`;
+    }
+    fromProj.push({
+      title: fields.title,
+      company: fields.stack,
+      location: "",
+      dates: fields.year,
+      bullets: fields.desc ? [fields.desc] : [],
+      repoUrl,
+    });
+  }
+  if (fromProj.length) return fromProj;
+  return parseExperience(body);
+}
+
 function collectBulletsFrom(lines, startIndex) {
   const bullets = [];
   for (let i = startIndex; i < lines.length; i++) {
@@ -565,7 +603,7 @@ function main() {
     ...j,
     displayTitle: j.title,
   }));
-  const projectsRaw = parseExperience(sections["Projects"] || "");
+  const projectsRaw = parseProjects(sections["Projects"] || "");
   const projects = projectsRaw.map((j) => ({
     ...j,
     displayTitle: j.title,

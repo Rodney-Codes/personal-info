@@ -17,10 +17,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "document_template": "assets/templates/document.html",
     "education_row_template": "assets/templates/education_row.html",
     "experience_row_template": "assets/templates/experience_row.html",
+    "project_row_template": "assets/templates/project_row.html",
     "document_title": "Resume",
     "preprocessors": {
         "edu_and_tech_rows": True,
         "experience_pipe_rows": True,
+        "project_rows": True,
         "first_h1_contact_paragraph": True,
     },
     "postprocessors": {
@@ -96,9 +98,11 @@ class BuildPaths:
     document_template: Path
     education_row_template: Path
     experience_row_template: Path
+    project_row_template: Path
     document_title: str
     preprocess_edu_tech: bool
     preprocess_experience: bool
+    preprocess_projects: bool
     contact_class_after_h1: bool
     trim_blank_pages: bool
 
@@ -122,9 +126,13 @@ def paths_from_config(
         experience_row_template=_resolve_cfg_path(
             base_dir, cfg, overrides, "experience_row_template"
         ),
+        project_row_template=_resolve_cfg_path(
+            base_dir, cfg, overrides, "project_row_template"
+        ),
         document_title=str(overrides.get("document_title", cfg.get("document_title", "Document"))),
         preprocess_edu_tech=bool(pre.get("edu_and_tech_rows", True)),
         preprocess_experience=bool(pre.get("experience_pipe_rows", True)),
+        preprocess_projects=bool(pre.get("project_rows", True)),
         contact_class_after_h1=bool(pre.get("first_h1_contact_paragraph", True)),
         trim_blank_pages=bool(post.get("trim_trailing_blank_pages", True)),
     )
@@ -168,5 +176,9 @@ def validate_paths(paths: BuildPaths) -> list[str]:
     if paths.preprocess_experience and not paths.experience_row_template.is_file():
         errors.append(
             f"experience_pipe_rows enabled but template missing: {paths.experience_row_template}"
+        )
+    if paths.preprocess_projects and not paths.project_row_template.is_file():
+        errors.append(
+            f"project_rows enabled but template missing: {paths.project_row_template}"
         )
     return errors

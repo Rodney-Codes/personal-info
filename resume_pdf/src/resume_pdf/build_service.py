@@ -11,7 +11,11 @@ from resume_pdf.html_service import (
     sanitize_html_for_pdf,
 )
 from resume_pdf.pdf_service import html_to_pdf_bytes, trim_trailing_blank_pages
-from resume_pdf.preprocessors import preprocess_edu_and_tech_rows, preprocess_experience_rows
+from resume_pdf.preprocessors import (
+    preprocess_edu_and_tech_rows,
+    preprocess_experience_rows,
+    preprocess_project_rows,
+)
 
 
 def run_build(paths: BuildPaths) -> int:
@@ -33,6 +37,8 @@ def run_build(paths: BuildPaths) -> int:
         md_text = preprocess_edu_and_tech_rows(md_text, paths.education_row_template)
     if paths.preprocess_experience:
         md_text = preprocess_experience_rows(md_text, paths.experience_row_template)
+    if paths.preprocess_projects:
+        md_text = preprocess_project_rows(md_text, paths.project_row_template)
 
     html_body = markdown.markdown(
         md_text,
